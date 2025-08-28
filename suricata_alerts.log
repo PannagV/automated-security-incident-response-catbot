@@ -740,3 +740,154 @@
 2025-08-28 21:08:00,477 - __main__ - INFO - additional_data column already exists
 2025-08-28 21:13:19,534 - __main__ - INFO - additional_data column already exists
 2025-08-28 21:13:19,545 - __main__ - INFO - additional_data column already exists
+2025-08-28 21:14:24,010 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\Documents\\Github\\Secbot\\network_utils.py', reloading
+2025-08-28 21:14:24,897 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-28 21:14:28,328 - __main__ - INFO - Checking API configurations...
+2025-08-28 21:14:28,329 - __main__ - INFO - All configurations present
+2025-08-28 21:14:28,331 - __main__ - INFO - Gemini API configured successfully
+2025-08-28 21:14:29,558 - __main__ - INFO - Successfully connected to Jira. Available projects: SMS, MP
+2025-08-28 21:14:29,791 - __main__ - INFO - Available issue types: Subtask, Subtask, Story, Task, Task, Epic, Epic, Epic
+2025-08-28 21:14:29,970 - __main__ - INFO - Available priorities: Highest, High, Medium, Low, Lowest
+2025-08-28 21:14:29,970 - __main__ - INFO - Loading model from alert_classifier.pkl
+2025-08-28 21:14:29,986 - __main__ - INFO - Model type: <class 'sklearn.ensemble._forest.RandomForestClassifier'>
+2025-08-28 21:14:29,986 - __main__ - INFO - Loading vectorizer from tfidf_vectorizer.pkl
+2025-08-28 21:14:29,995 - __main__ - INFO - Vectorizer type: <class 'sklearn.feature_extraction.text.TfidfVectorizer'>
+2025-08-28 21:14:29,995 - __main__ - INFO - Model and vectorizer loaded successfully
+2025-08-28 21:14:30,100 - __main__ - INFO - Database tables created successfully
+2025-08-28 21:14:30,100 - network_utils - INFO - Trying PowerShell Get-NetAdapter method...
+2025-08-28 21:14:31,323 - network_utils - INFO - Detected active interface via PowerShell: Wi-Fi
+2025-08-28 21:14:31,323 - network_utils - INFO - Successfully detected interface 'Wi-Fi' using PowerShell Get-NetAdapter
+2025-08-28 21:14:31,325 - __main__ - INFO - Primary network interface detected: Wi-Fi
+2025-08-28 21:14:31,325 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata
+2025-08-28 21:14:31,326 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata\configs
+2025-08-28 21:14:31,326 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata\rules
+2025-08-28 21:14:31,326 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata\logs
+2025-08-28 21:14:31,327 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\classification.config
+2025-08-28 21:14:31,328 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\reference.config
+2025-08-28 21:14:31,329 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\threshold.config
+2025-08-28 21:14:31,330 - suricata_integration - WARNING - Config file not found: C:\Users\panna\Documents\Github\Secbot\config\suricata_config.yaml
+2025-08-28 21:14:31,335 - suricata_integration - INFO - Generated Suricata config: C:\Users\panna\Documents\Github\Secbot\suricata\suricata.yaml
+2025-08-28 21:14:31,336 - __main__ - INFO - SuricataManager initialized successfully.
+2025-08-28 21:14:31,336 - werkzeug - WARNING -  * Debugger is active!
+2025-08-28 21:14:31,342 - werkzeug - INFO -  * Debugger PIN: 497-607-750
+2025-08-28 21:14:33,973 - werkzeug - INFO -  * Detected change in 'C:\\Python313\\Lib\\threading.py', reloading
+2025-08-28 21:14:34,005 - werkzeug - INFO -  * Detected change in 'C:\\Python313\\Lib\\subprocess.py', reloading
+2025-08-28 21:14:34,041 - werkzeug - INFO -  * Detected change in 'C:\\Python313\\Lib\\platform.py', reloading
+2025-08-28 21:14:34,071 - werkzeug - INFO -  * Detected change in 'C:\\Python313\\Lib\\datetime.py', reloading
+2025-08-28 21:14:34,074 - werkzeug - INFO -  * Detected change in 'C:\\Python313\\Lib\\_pydatetime.py', reloading
+2025-08-28 21:14:34,114 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\watchdog\\observers\\__init__.py', reloading
+2025-08-28 21:14:34,125 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\watchdog\\events.py', reloading
+2025-08-28 21:14:34,154 - werkzeug - INFO -  * Detected change in 'C:\\Python313\\Lib\\signal.py', reloading
+2025-08-28 21:14:34,384 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\watchdog\\observers\\api.py', reloading
+2025-08-28 21:14:34,389 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\watchdog\\utils\\__init__.py', reloading
+2025-08-28 21:14:34,484 - werkzeug - INFO -  * Detected change in 'C:\\Python313\\Lib\\re\\__init__.py', reloading
+2025-08-28 21:14:34,499 - werkzeug - INFO -  * Detected change in 'C:\\Python313\\Lib\\socket.py', reloading
+2025-08-28 21:14:34,517 - werkzeug - INFO -  * Detected change in 'C:\\Python313\\Lib\\typing.py', reloading
+2025-08-28 21:14:34,626 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\flask\\__init__.py', reloading
+2025-08-28 21:14:34,633 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\flask\\app.py', reloading
+2025-08-28 21:14:34,650 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\flask\\scaffold.py', reloading
+2025-08-28 21:14:34,661 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\flask\\globals.py', reloading
+2025-08-28 21:14:34,663 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\flask\\wrappers.py', reloading
+2025-08-28 21:14:34,665 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\werkzeug\\wrappers\\__init__.py', reloading
+2025-08-28 21:14:34,667 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\werkzeug\\wrappers\\request.py', reloading
+2025-08-28 21:14:34,675 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\werkzeug\\sansio\\request.py', reloading
+2025-08-28 21:14:34,680 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\flask\\json\\__init__.py', reloading
+2025-08-28 21:14:34,687 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\werkzeug\\wrappers\\response.py', reloading
+2025-08-28 21:14:34,697 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\werkzeug\\sansio\\response.py', reloading
+2025-08-28 21:14:34,702 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\flask\\templating.py', reloading
+2025-08-28 21:14:34,707 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\flask_sqlalchemy\\__init__.py', reloading
+2025-08-28 21:14:34,737 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\joblib\\__init__.py', reloading
+2025-08-28 21:14:34,739 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\jira\\__init__.py', reloading
+2025-08-28 21:14:34,825 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\slack_sdk\\__init__.py', reloading
+2025-08-28 21:14:34,827 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\slack_sdk\\web\\__init__.py', reloading
+2025-08-28 21:14:34,829 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\AppData\\Roaming\\Python\\Python313\\site-packages\\slack_sdk\\web\\client.py', reloading
+2025-08-28 21:14:35,330 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-28 21:14:38,593 - __main__ - INFO - Checking API configurations...
+2025-08-28 21:14:38,594 - __main__ - INFO - All configurations present
+2025-08-28 21:14:38,595 - __main__ - INFO - Gemini API configured successfully
+2025-08-28 21:14:39,272 - __main__ - INFO - Successfully connected to Jira. Available projects: SMS, MP
+2025-08-28 21:14:39,472 - __main__ - INFO - Available issue types: Subtask, Subtask, Story, Task, Task, Epic, Epic, Epic
+2025-08-28 21:14:39,577 - __main__ - INFO - Available priorities: Highest, High, Medium, Low, Lowest
+2025-08-28 21:14:39,578 - __main__ - INFO - Loading model from alert_classifier.pkl
+2025-08-28 21:14:39,592 - __main__ - INFO - Model type: <class 'sklearn.ensemble._forest.RandomForestClassifier'>
+2025-08-28 21:14:39,592 - __main__ - INFO - Loading vectorizer from tfidf_vectorizer.pkl
+2025-08-28 21:14:39,600 - __main__ - INFO - Vectorizer type: <class 'sklearn.feature_extraction.text.TfidfVectorizer'>
+2025-08-28 21:14:39,600 - __main__ - INFO - Model and vectorizer loaded successfully
+2025-08-28 21:14:39,698 - __main__ - INFO - Database tables created successfully
+2025-08-28 21:14:39,699 - network_utils - INFO - Trying PowerShell Get-NetAdapter method...
+2025-08-28 21:14:40,739 - network_utils - INFO - Detected active interface via PowerShell: Wi-Fi
+2025-08-28 21:14:40,739 - network_utils - INFO - Successfully detected interface 'Wi-Fi' using PowerShell Get-NetAdapter
+2025-08-28 21:14:40,741 - __main__ - INFO - Primary network interface detected: Wi-Fi
+2025-08-28 21:14:40,741 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata
+2025-08-28 21:14:40,742 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata\configs
+2025-08-28 21:14:40,742 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata\rules
+2025-08-28 21:14:40,742 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata\logs
+2025-08-28 21:14:40,743 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\classification.config
+2025-08-28 21:14:40,744 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\reference.config
+2025-08-28 21:14:40,744 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\threshold.config
+2025-08-28 21:14:40,745 - suricata_integration - WARNING - Config file not found: C:\Users\panna\Documents\Github\Secbot\config\suricata_config.yaml
+2025-08-28 21:14:40,751 - suricata_integration - INFO - Generated Suricata config: C:\Users\panna\Documents\Github\Secbot\suricata\suricata.yaml
+2025-08-28 21:14:40,752 - __main__ - INFO - SuricataManager initialized successfully.
+2025-08-28 21:14:40,752 - werkzeug - WARNING -  * Debugger is active!
+2025-08-28 21:14:40,757 - werkzeug - INFO -  * Debugger PIN: 497-607-750
+2025-08-28 21:14:51,730 - __main__ - INFO - additional_data column already exists
+2025-08-28 21:14:51,744 - __main__ - INFO - additional_data column already exists
+2025-08-28 21:14:58,509 - suricata_integration - ERROR - Suricata is not available. Please install Suricata first.
+2025-08-28 21:17:15,096 - __main__ - INFO - Checking API configurations...
+2025-08-28 21:17:15,097 - __main__ - INFO - All configurations present
+2025-08-28 21:17:15,097 - __main__ - INFO - Gemini API configured successfully
+2025-08-28 21:17:15,943 - __main__ - INFO - Successfully connected to Jira. Available projects: SMS, MP
+2025-08-28 21:17:16,162 - __main__ - INFO - Available issue types: Subtask, Subtask, Story, Task, Task, Epic, Epic, Epic
+2025-08-28 21:17:16,352 - __main__ - INFO - Available priorities: Highest, High, Medium, Low, Lowest
+2025-08-28 21:17:16,354 - __main__ - INFO - Loading model from alert_classifier.pkl
+2025-08-28 21:17:16,370 - __main__ - INFO - Model type: <class 'sklearn.ensemble._forest.RandomForestClassifier'>
+2025-08-28 21:17:16,370 - __main__ - INFO - Loading vectorizer from tfidf_vectorizer.pkl
+2025-08-28 21:17:16,384 - __main__ - INFO - Vectorizer type: <class 'sklearn.feature_extraction.text.TfidfVectorizer'>
+2025-08-28 21:17:16,386 - __main__ - INFO - Model and vectorizer loaded successfully
+2025-08-28 21:17:16,494 - __main__ - INFO - Database tables created successfully
+2025-08-28 21:17:16,496 - network_utils - INFO - Trying PowerShell Get-NetAdapter method...
+2025-08-28 21:17:17,717 - network_utils - INFO - Detected active interface via PowerShell: Wi-Fi
+2025-08-28 21:17:17,719 - network_utils - INFO - Successfully detected interface 'Wi-Fi' using PowerShell Get-NetAdapter
+2025-08-28 21:17:17,721 - __main__ - INFO - Primary network interface detected: Wi-Fi
+2025-08-28 21:17:17,722 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata
+2025-08-28 21:17:17,723 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata\configs
+2025-08-28 21:17:17,724 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata\rules
+2025-08-28 21:17:17,725 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata\logs
+2025-08-28 21:17:17,727 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\classification.config
+2025-08-28 21:17:17,729 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\reference.config
+2025-08-28 21:17:17,730 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\threshold.config
+2025-08-28 21:17:17,731 - suricata_integration - WARNING - Config file not found: C:\Users\panna\Documents\Github\Secbot\config\suricata_config.yaml
+2025-08-28 21:17:17,738 - suricata_integration - INFO - Generated Suricata config: C:\Users\panna\Documents\Github\Secbot\suricata\suricata.yaml
+2025-08-28 21:17:17,739 - __main__ - INFO - SuricataManager initialized successfully.
+2025-08-28 21:17:17,741 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-28 21:17:20,466 - __main__ - INFO - Checking API configurations...
+2025-08-28 21:17:20,468 - __main__ - INFO - All configurations present
+2025-08-28 21:17:20,470 - __main__ - INFO - Gemini API configured successfully
+2025-08-28 21:17:21,077 - __main__ - INFO - Successfully connected to Jira. Available projects: SMS, MP
+2025-08-28 21:17:21,286 - __main__ - INFO - Available issue types: Subtask, Subtask, Story, Task, Task, Epic, Epic, Epic
+2025-08-28 21:17:21,493 - __main__ - INFO - Available priorities: Highest, High, Medium, Low, Lowest
+2025-08-28 21:17:21,497 - __main__ - INFO - Loading model from alert_classifier.pkl
+2025-08-28 21:17:21,517 - __main__ - INFO - Model type: <class 'sklearn.ensemble._forest.RandomForestClassifier'>
+2025-08-28 21:17:21,520 - __main__ - INFO - Loading vectorizer from tfidf_vectorizer.pkl
+2025-08-28 21:17:21,537 - __main__ - INFO - Vectorizer type: <class 'sklearn.feature_extraction.text.TfidfVectorizer'>
+2025-08-28 21:17:21,538 - __main__ - INFO - Model and vectorizer loaded successfully
+2025-08-28 21:17:21,657 - __main__ - INFO - Database tables created successfully
+2025-08-28 21:17:21,659 - network_utils - INFO - Trying PowerShell Get-NetAdapter method...
+2025-08-28 21:17:22,704 - network_utils - INFO - Detected active interface via PowerShell: Wi-Fi
+2025-08-28 21:17:22,705 - network_utils - INFO - Successfully detected interface 'Wi-Fi' using PowerShell Get-NetAdapter
+2025-08-28 21:17:22,707 - __main__ - INFO - Primary network interface detected: Wi-Fi
+2025-08-28 21:17:22,708 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata
+2025-08-28 21:17:22,709 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata\configs
+2025-08-28 21:17:22,710 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata\rules
+2025-08-28 21:17:22,711 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\Github\Secbot\suricata\logs
+2025-08-28 21:17:22,713 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\classification.config
+2025-08-28 21:17:22,714 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\reference.config
+2025-08-28 21:17:22,716 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\threshold.config
+2025-08-28 21:17:22,717 - suricata_integration - WARNING - Config file not found: C:\Users\panna\Documents\Github\Secbot\config\suricata_config.yaml
+2025-08-28 21:17:22,721 - suricata_integration - INFO - Generated Suricata config: C:\Users\panna\Documents\Github\Secbot\suricata\suricata.yaml
+2025-08-28 21:17:22,722 - __main__ - INFO - SuricataManager initialized successfully.
+2025-08-28 21:17:22,723 - werkzeug - WARNING -  * Debugger is active!
+2025-08-28 21:17:22,726 - werkzeug - INFO -  * Debugger PIN: 497-607-750
+2025-08-28 21:17:36,982 - __main__ - INFO - additional_data column already exists
+2025-08-28 21:17:36,997 - __main__ - INFO - additional_data column already exists
+2025-08-28 21:18:13,784 - suricata_integration - ERROR - Suricata is not available. Please install Suricata first.
