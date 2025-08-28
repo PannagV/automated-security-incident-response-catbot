@@ -1,0 +1,6 @@
+# Custom Security Rules
+alert tcp any any -> $HOME_NET any (msg:"CUSTOM: Suspicious TCP Traffic"; flow:to_server; content:"malware"; sid:1000001; rev:1;)
+alert http any any -> $HOME_NET any (msg:"CUSTOM: Suspicious HTTP Request"; http_method; content:"GET"; http_uri; content:"/admin"; sid:1000002; rev:1;)
+alert tcp any any -> $HOME_NET 22 (msg:"CUSTOM: SSH Brute Force Attempt"; flags:S; threshold:type threshold, track by_src, seconds 60, count 10; sid:1000003; rev:1;)
+alert tcp any any -> $HOME_NET 80 (msg:"CUSTOM: HTTP SQL Injection Attempt"; flow:to_server; content:"SELECT"; content:"FROM"; distance:0; sid:1000004; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"CUSTOM: Port Scan Detected"; flags:S; threshold:type threshold, track by_src, seconds 10, count 10; sid:1000005; rev:1;)

@@ -1,0 +1,5 @@
+# Web Attack Detection Rules
+alert http any any -> $HTTP_SERVERS $HTTP_PORTS (msg:"WEB: XSS Attack Attempt"; flow:to_server; content:"<script"; nocase; sid:2000001; rev:1;)
+alert http any any -> $HTTP_SERVERS $HTTP_PORTS (msg:"WEB: Command Injection Attempt"; flow:to_server; content:"|3B|"; content:"system"; distance:0; sid:2000002; rev:1;)
+alert http any any -> $HTTP_SERVERS $HTTP_PORTS (msg:"WEB: Directory Traversal Attempt"; flow:to_server; content:"../"; sid:2000003; rev:1;)
+alert http any any -> $HTTP_SERVERS $HTTP_PORTS (msg:"WEB: PHP Code Injection"; flow:to_server; content:"<?php"; nocase; sid:2000004; rev:1;)

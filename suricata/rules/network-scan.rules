@@ -1,0 +1,4 @@
+# Network Scanning Detection Rules
+alert tcp any any -> $HOME_NET any (msg:"SCAN: NMAP TCP Connect Scan"; flags:S; threshold:type threshold, track by_src, seconds 30, count 15; sid:4000001; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"SCAN: NMAP SYN Scan"; flags:S; threshold:type threshold, track by_src, seconds 10, count 20; sid:4000002; rev:1;)
+alert udp any any -> $HOME_NET any (msg:"SCAN: UDP Port Scan"; threshold:type threshold, track by_src, seconds 30, count 10; sid:4000003; rev:1;)

@@ -19,6 +19,9 @@ import threading
 import time
 import random
 import requests
+from flask_socketio import SocketIO, emit
+from suricata_integration import SuricataManager
+from network_utils import detect_primary_network_interface
 
 # Load environment variables from .env file with force reload
 load_dotenv(override=True)
@@ -35,6 +38,53 @@ print("====================================")
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})  # More explicit CORS configuration
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# --- Suricata Integration ---
+suricata_manager = None
+suricata_thread = None
+
+def initialize_suricata():
+    """Initialize the Suricata manager."""
+    global suricata_manager
+    try:
+        primary_interface = detect_primary_network_interface()
+        if primary_interface:
+            logger.info(f"Primary network interface detected: {primary_interface}")
+            suricata_manager = SuricataManager(interface=primary_interface)
+            logger.info("SuricataManager initialized successfully.")
+        else:
+            logger.error("Could not detect a primary network interface for Suricata.")
+    except Exception as e:
+        logger.error(f"Failed to initialize SuricataManager: {e}")
+
+def suricata_alert_callback(alert_data):
+    """Callback function to handle Suricata alerts and emit them via WebSocket."""
+    try:
+        if alert_data.get('event_type') == 'alert':
+            alert = alert_data.get('alert', {})
+            
+            # Map Suricata severity (1-4) to string representation
+            severity_map = {1: 'Critical', 2: 'High', 3: 'Medium', 4: 'Low'}
+            severity = severity_map.get(alert.get('severity'), 'Unknown')
+
+            formatted_alert = {
+                'timestamp': alert_data.get('timestamp'),
+                'severity': severity,
+                'signature': alert.get('signature'),
+                'category': alert.get('category'),
+                'source_ip': alert_data.get('src_ip'),
+                'source_port': alert_data.get('src_port'),
+                'dest_ip': alert_data.get('dest_ip'),
+                'dest_port': alert_data.get('dest_port'),
+                'protocol': alert_data.get('proto'),
+                'raw_alert': alert_data 
+            }
+            socketio.emit('suricata_alert', formatted_alert)
+    except Exception as e:
+        logger.error(f"Error in Suricata callback: {e}")
+
+# --- End Suricata Integration ---
 
 # Configuration
 CONFIG = {
@@ -1489,38 +1539,91 @@ def get_siem_alert(alert_id):
 
 @app.route('/api/siem/alerts/summary', methods=['GET'])
 def get_siem_summary():
-    """Get SIEM alerts summary"""
+    pass
+
+# --- Suricata API Endpoints ---
+
+@app.route('/api/suricata/start', methods=['POST'])
+def start_suricata():
+    global suricata_manager, suricata_thread
+    if not suricata_manager:
+        return jsonify({'status': 'error', 'message': 'Suricata manager not initialized.'}), 500
+    
+    if suricata_manager.get_status().get('suricata_running'):
+        return jsonify({'status': 'already_running', 'message': 'Suricata is already running.'})
+
     try:
-        # Get counts by severity
-        severity_counts = db.session.query(
-            SecurityEvent.severity,
-            db.func.count(SecurityEvent.id)
-        ).group_by(SecurityEvent.severity).all()
+        # Run Suricata in a background thread to not block the API call
+        suricata_thread = threading.Thread(target=suricata_manager.start_suricata, args=(suricata_alert_callback,))
+        suricata_thread.daemon = True
+        suricata_thread.start()
         
-        # Get recent alerts
-        recent_alerts = SecurityEvent.query.order_by(
-            SecurityEvent.timestamp.desc()
-        ).limit(10).all()
+        # Give it a moment to start up before returning status
+        time.sleep(5) 
         
-        return jsonify({
-            'status': 'success',
-            'summary': {
-                'severity_counts': {
-                    severity: count for severity, count in severity_counts
-                },
-                'recent_alerts': [{
-                    'id': alert.id,
-                    'message': alert.message,
-                    'severity': alert.severity,
-                    'timestamp': alert.timestamp.isoformat()
-                } for alert in recent_alerts]
-            }
-        })
+        return jsonify({'status': 'success', 'message': 'Suricata is starting...'})
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'error': str(e)
-        }), 500
+        logger.error(f"Failed to start Suricata thread: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/suricata/stop', methods=['POST'])
+def stop_suricata():
+    global suricata_manager
+    if not suricata_manager or not suricata_manager.get_status().get('suricata_running'):
+        return jsonify({'status': 'not_running', 'message': 'Suricata is not running.'})
+    
+    try:
+        suricata_manager.stop_suricata()
+        return jsonify({'status': 'success', 'message': 'Suricata stopped successfully.'})
+    except Exception as e:
+        logger.error(f"Failed to stop Suricata: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/suricata/status', methods=['GET'])
+def suricata_status():
+    if not suricata_manager:
+        return jsonify({'status': 'error', 'message': 'Suricata manager not initialized.'}), 500
+    
+    return jsonify(suricata_manager.get_status())
+
+@app.route('/api/suricata/logs', methods=['GET'])
+def get_suricata_logs():
+    if not suricata_manager:
+        return jsonify({'status': 'error', 'message': 'Suricata manager not initialized.'}), 500
+    
+    log_file = suricata_manager.eve_json_path
+    logs = []
+    if log_file.exists():
+        try:
+            with open(log_file, 'r') as f:
+                for line in f:
+                    try:
+                        log_entry = json.loads(line)
+                        if log_entry.get('event_type') == 'alert':
+                            alert = log_entry.get('alert', {})
+                            severity_map = {1: 'Critical', 2: 'High', 3: 'Medium', 4: 'Low'}
+                            severity = severity_map.get(alert.get('severity'), 'Unknown')
+                            logs.append({
+                                'timestamp': log_entry.get('timestamp'),
+                                'severity': severity,
+                                'signature': alert.get('signature'),
+                                'category': alert.get('category'),
+                                'source_ip': log_entry.get('src_ip'),
+                                'source_port': log_entry.get('src_port'),
+                                'dest_ip': log_entry.get('dest_ip'),
+                                'dest_port': log_entry.get('dest_port'),
+                                'protocol': log_entry.get('proto'),
+                            })
+                    except json.JSONDecodeError:
+                        continue
+            # Return most recent logs first
+            return jsonify({'status': 'success', 'logs': logs[::-1]})
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+    return jsonify({'status': 'success', 'logs': []})
+
+# --- End Suricata API Endpoints ---
+
 
 # Admin page for viewing alerts
 
@@ -1700,66 +1803,11 @@ def get_geographic_threats():
 
 @app.route('/api/threat-stats', methods=['GET'])
 def get_threat_statistics():
-    """Get threat statistics and analytics"""
-    try:
-        if not threat_intelligence_data:
-            return jsonify({
-                'status': 'success',
-                'data': {
-                    'total_threats': 0,
-                    'severity_breakdown': {},
-                    'attack_type_breakdown': {},
-                    'top_countries': [],
-                    'recent_activity': []
-                }
-            })
-        
-        # Calculate statistics
-        severity_counts = {}
-        attack_type_counts = {}
-        country_counts = {}
-        
-        for threat in threat_intelligence_data:
-            # Severity breakdown
-            severity = threat['severity']
-            severity_counts[severity] = severity_counts.get(severity, 0) + 1
-            
-            # Attack type breakdown
-            attack_type = threat['threat_type']
-            attack_type_counts[attack_type] = attack_type_counts.get(attack_type, 0) + 1
-            
-            # Country breakdown
-            country = threat['country']
-            country_counts[country] = country_counts.get(country, 0) + 1
-        
-        # Get top 5 countries
-        top_countries = sorted(country_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'total_threats': len(threat_intelligence_data),
-                'severity_breakdown': severity_counts,
-                'attack_type_breakdown': attack_type_counts,
-                'top_countries': [{'country': country, 'count': count} for country, count in top_countries],
-                'recent_activity': threat_intelligence_data[-10:]  # Last 10 threats
-            }
-        })
-    
-    except Exception as e:
-        logger.error(f"Error getting threat statistics: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'error': str(e)
-        }), 500
+    pass
 
 if __name__ == '__main__':
     with app.app_context():
-        try:
-            # Create tables if they don't exist
-            create_tables()
-            logger.info("Database tables created successfully")
-        except Exception as e:
-            logger.error(f"Error creating database tables: {str(e)}")
+        create_tables()
+        initialize_suricata()
     
-    app.run(debug=True)
+    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
