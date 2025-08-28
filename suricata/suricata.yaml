@@ -2183,21 +2183,15 @@ napatech:
 ## Configure Suricata to load Suricata-Update managed rules.
 ##
 
-default-rule-path: C:\\Program Files\\Suricata\\rules\\
+default-rule-path: ./rules
 
 rule-files:
- - botcc.rules
- - botcc.portgrouped.rules
- - ciarmy.rules
- - compromised.rules
- - drop.rules
- - dshield.rules
- - emerging-activex.rules
- - emerging-adware_pup.rules
- - emerging-attack_response.rules
- - emerging-chat.rules
- - emerging-coinminer.rules
- - emerging-current_events.rules
+ - nmap.rules
+ - network-scan.rules
+ - custom-security.rules
+ - emerging-all.rules
+ - malware-detection.rules
+ - web-attacks.rules
  - emerging-dns.rules
  - emerging-dos.rules
  - emerging-exploit.rules

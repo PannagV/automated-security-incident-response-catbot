@@ -473,27 +473,90 @@ class SuricataManager:
             suricata_path = r'C:\Program Files\Suricata\suricata.exe'
             
             if platform.system().lower() == 'windows':
-                # For Windows, we need to use PowerShell to run with elevation
-                powershell_cmd = [
-                    'powershell.exe',
-                    '-Command',
-                    'Start-Process',
-                    '-FilePath', suricata_path,
-                    '-ArgumentList',
-                    f'"-c {str(config_file)} --pcap={self.interface} -l {str(self.config_manager.logs_dir)} -v"',
-                    '-Verb', 'RunAs',
-                    '-WindowStyle', 'Normal',
-                    '-Wait'
-                ]
-                
-                logger.info(f"Starting Suricata with command: {' '.join(powershell_cmd)}")
                 try:
+                    # For Windows, construct the Suricata command
+                    suricata_args = f'-c "{str(config_file)}" --pcap="{self.interface}" -l "{str(self.config_manager.logs_dir)}" -v'
+                    
+                    # Run an initial check if suricata.exe exists
+                    if not os.path.exists(suricata_path):
+                        raise FileNotFoundError(f"Suricata executable not found at: {suricata_path}")
+                    
+                    # Create a runas command
+                    runas_cmd = [
+                        'runas',
+                        '/user:Administrator',
+                        f'"{suricata_path} -c "{str(config_file)}" --pcap={self.interface} -l "{str(self.config_manager.logs_dir)}" -v"'
+                    ]
+                    
+                    logger.info(f"Starting Suricata with elevated privileges")
+                    logger.info(f"Command: {' '.join(runas_cmd)}")
+                    
+                    # Create a batch file to run Suricata
+                    batch_path = self.config_manager.logs_dir / 'run_suricata.bat'
+                    with open(batch_path, 'w') as f:
+                        f.write('@echo off\n')
+                        f.write(f'cd /d "{os.path.dirname(suricata_path)}"\n')
+                        f.write(f'echo Starting Suricata in monitoring mode...\n')
+                        f.write(f'echo Press Ctrl+C to stop monitoring\n')
+                        f.write(f'"{suricata_path}" -c "{str(config_file)}" --pcap={self.interface} -l "{str(self.config_manager.logs_dir)}" -v\n')
+                        # Add an infinite loop to keep the window open
+                        f.write('if %ERRORLEVEL% NEQ 0 (\n')
+                        f.write('    echo Suricata exited with error code %ERRORLEVEL%\n')
+                        f.write('    pause\n')
+                        f.write(') else (\n')
+                        f.write('    echo Suricata stopped. Press any key to close window...\n')
+                        f.write('    pause > nul\n')
+                        f.write(')\n')
+                    
+                    # Make the batch file executable
+                    os.chmod(batch_path, 0o755)
+                    
+                    # Verify Suricata directory exists and is accessible
+                    suricata_dir = os.path.dirname(suricata_path)
+                    if not os.path.exists(suricata_dir):
+                        raise FileNotFoundError(f"Suricata directory not found: {suricata_dir}")
+                    
+                    # Verify all required DLLs are present
+                    required_dlls = ['winpcap.dll', 'wpcap.dll']
+                    missing_dlls = []
+                    for dll in required_dlls:
+                        dll_path = os.path.join(suricata_dir, dll)
+                        if not os.path.exists(dll_path):
+                            missing_dlls.append(dll)
+                    
+                    if missing_dlls:
+                        logger.warning(f"Missing DLLs in Suricata directory: {', '.join(missing_dlls)}")
+                    
+                    # Start the process using the batch file
+                    logger.info("Attempting to start Suricata process...")
+                    cmd = ['cmd', '/c', 'start', '/wait', str(batch_path)]
                     self.suricata_process = subprocess.Popen(
-                        powershell_cmd,
+                        cmd,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
-                        creationflags=subprocess.CREATE_NEW_CONSOLE | subprocess.CREATE_NO_WINDOW
+                        creationflags=subprocess.CREATE_NEW_CONSOLE
                     )
+                    logger.info(f"Process created with PID: {self.suricata_process.pid}")
+                    
+                    # Immediately check process state
+                    returncode = self.suricata_process.poll()
+                    logger.info(f"Initial process state check - returncode: {returncode}")
+                    
+                    # Wait briefly to check if process started
+                    time.sleep(2)
+                    if self.suricata_process.poll() is not None:
+                        exit_code = self.suricata_process.poll()
+                        stdout, stderr = self.suricata_process.communicate()
+                        logger.error(f"Suricata failed to start. Exit code: {exit_code}")
+                        logger.error(f"stdout: {stdout.decode() if stdout else 'No output'}")
+                        logger.error(f"stderr: {stderr.decode() if stderr else 'No errors'}")
+                        raise RuntimeError("Suricata process failed to start")
+                        
+                    logger.info("Suricata process started successfully")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to start Suricata: {str(e)}")
+                    raise
                     
                     # Wait a short time to check if the process started successfully
                     time.sleep(2)
