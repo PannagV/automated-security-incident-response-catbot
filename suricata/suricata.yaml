@@ -58,8 +58,7 @@ vars:
 # The default logging directory.  Any log or output file will be
 # placed here if it's not specified with a full path name. This can be
 # overridden with the -l command line parameter.
-default-log-dir: C:\\Program Files\\Suricata\\log
-
+default-log-dir: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
 # Global stats configuration
 stats:
   enabled: yes
@@ -92,6 +91,18 @@ outputs:
       enabled: yes
       filetype: regular #regular|syslog|unix_dgram|unix_stream|redis
       filename: eve.json
+  
+  - eve-log:
+      enabled: yes
+      filename: eve.json
+      filetype: regular
+      types: [alert, dns, http, tls, flow]
+  - eve-log:
+      enabled: yes
+      filename: eve-alerts.json
+      filetype: regular
+      types: [alert]
+      
       # Enable for multi-threaded eve.json output; output files are amended with
       # an identifier, e.g., eve.9.json
       #threaded: false

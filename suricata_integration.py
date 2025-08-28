@@ -4,920 +4,154 @@ import json
 import yaml
 import time
 import threading
-import subprocess
 import platform
 from datetime import datetime
 from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import logging
-import signal
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('suricata_alerts.log')
-    ]
+        logging.FileHandler("suricata_alerts.log", encoding="utf-8")
+    ],
 )
+logger = logging.getLogger("suricata_integration")
 
-logger = logging.getLogger(__name__)
+WIN_DEFAULT_LOG_DIR = Path(r"C:\Program Files\Suricata\log")
+REPO_BASE = Path(os.getcwd())
+REPO_SURICATA_DIR = REPO_BASE / "suricata"
+REPO_LOG_DIR = REPO_SURICATA_DIR / "logs"
+REPO_CONF = REPO_SURICATA_DIR / "suricata.yaml"
 
-class SuricataConfigManager:
-    """Manages Suricata configuration files and rules"""
-    
-    def __init__(self, base_dir=None):
-        self.base_dir = Path(base_dir) if base_dir else Path(os.getcwd())
-        self.suricata_dir = self.base_dir / 'suricata'
-        self.config_dir = self.suricata_dir / 'configs'
-        self.rules_dir = self.suricata_dir / 'rules'
-        self.logs_dir = self.suricata_dir / 'logs'
-        
-        # Ensure directories exist
-        self.create_directory_structure()
-        
-    def create_directory_structure(self):
-        """Create the necessary directory structure"""
-        directories = [
-            self.suricata_dir,
-            self.config_dir,
-            self.rules_dir,
-            self.logs_dir
-        ]
-        
-        for directory in directories:
-            directory.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Created directory: {directory}")
-    
-    def load_external_config(self, config_file_path=None):
-        """Load external Suricata configuration"""
-        if config_file_path is None:
-            config_file_path = self.base_dir / 'suricata' / 'suricata.yaml'
-        
-        try:
-            with open(config_file_path, 'r') as f:
-                config = yaml.safe_load(f)
-            return config
-        except FileNotFoundError:
-            error_msg = f"Error: Suricata configuration file not found at {config_file_path}"
-            logger.error(error_msg)
-            raise FileNotFoundError(error_msg)
-        except Exception as e:
-            error_msg = f"Error loading Suricata configuration: {e}"
-            logger.error(error_msg)
-            raise
-    
-    def generate_base_config(self):
-        """Generate base configuration for Suricata"""
-        is_windows = platform.system().lower() == 'windows'
-        
-        config = {
-            'vars': {
-                'address-groups': {
-                    'HOME_NET': '[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]',
-                    'EXTERNAL_NET': '!$HOME_NET',
-                    'HTTP_SERVERS': '$HOME_NET',
-                    'SMTP_SERVERS': '$HOME_NET',
-                    'SQL_SERVERS': '$HOME_NET',
-                    'DNS_SERVERS': '$HOME_NET',
-                    'TELNET_SERVERS': '$HOME_NET',
-                    'AIM_SERVERS': '$EXTERNAL_NET',
-                    'DC_SERVERS': '$HOME_NET',
-                    'DNP3_SERVER': '$HOME_NET',
-                    'DNP3_CLIENT': '$HOME_NET',
-                    'MODBUS_CLIENT': '$HOME_NET',
-                    'MODBUS_SERVER': '$HOME_NET',
-                    'ENIP_CLIENT': '$HOME_NET',
-                    'ENIP_SERVER': '$HOME_NET'
-                },
-                'port-groups': {
-                    'HTTP_PORTS': '80',
-                    'SHELLCODE_PORTS': '!80',
-                    'ORACLE_PORTS': '1521',
-                    'SSH_PORTS': '22',
-                    'DNP3_PORTS': '20000',
-                    'MODBUS_PORTS': '502',
-                    'FILE_DATA_PORTS': '[$HTTP_PORTS,110,143]',
-                    'FTP_PORTS': '21'
-                }
-            },
-            'default-log-dir': str(self.logs_dir),
-            'stats': {
-                'enabled': True,
-                'interval': 8
-            },
-            'outputs': [
-                {
-                    'eve-log': {
-                        'enabled': True,
-                        'filetype': 'regular',
-                        'filename': 'eve.json',
-                        'types': [
-                            {'alert': {'payload': True, 'packet': True, 'metadata': True}},
-                            {'http': {'extended': True}},
-                            {'dns': {'query': True, 'answer': True}},
-                            {'tls': {'extended': True}},
-                            'files',
-                            'smtp',
-                            'ssh',
-                            'flow'
-                        ]
-                    }
-                },
-                {
-                    'fast': {
-                        'enabled': True,
-                        'filename': 'fast.log',
-                        'append': True
-                    }
-                }
-            ],
-            'logging': {
-                'default-log-level': 'notice',
-                'outputs': [
-                    {'console': {'enabled': True}},
-                    {
-                        'file': {
-                            'enabled': True,
-                            'level': 'info',
-                            'filename': str(self.logs_dir / 'suricata.log')
-                        }
-                    }
-                ]
-            },
-            # Windows-specific configuration
-            'pcap': {
-                'interface': self._detect_primary_interface(),
-                'buffer-size': 1048576,
-                'checksum-checks': 'auto',
-                'bpf-filter': ''
-            } if platform.system().lower() == 'windows' else {
-                'interface': self._detect_primary_interface()
-            },
-            'detect-engine': [
-                {'profile': 'medium'},
-                {
-                    'custom-values': {
-                        'toclient-groups': 3,
-                        'toserver-groups': 25
-                    }
-                }
-            ],
-            'default-rule-path': str(self.rules_dir),
-            'rule-files': self.get_rule_files(),
-            'classification-file': str(self.config_dir / 'classification.config'),
-            'reference-config-file': str(self.config_dir / 'reference.config'),
-            'threshold-file': str(self.config_dir / 'threshold.config')
-        }
-    
-    def get_rule_files(self):
-        """Get list of available rule files"""
-        rule_files = []
-        if self.rules_dir.exists():
-            for rule_file in self.rules_dir.glob('*.rules'):
-                rule_files.append(rule_file.name)
-        
-        # If no external rules exist, create default ones
-        if not rule_files:
-            self.create_default_rules()
-            rule_files = ['custom-security.rules']
-        
-        return rule_files
-    
-    def create_default_rules(self):
-        """Create default rule files"""
-        rules_content = {
-            'custom-security.rules': '''
-# Custom Security Rules
-alert tcp any any -> $HOME_NET any (msg:"CUSTOM: Suspicious TCP Traffic"; flow:to_server; content:"malware"; sid:1000001; rev:1;)
-alert http any any -> $HOME_NET any (msg:"CUSTOM: Suspicious HTTP Request"; http_method; content:"GET"; http_uri; content:"/admin"; sid:1000002; rev:1;)
-alert tcp any any -> $HOME_NET 22 (msg:"CUSTOM: SSH Brute Force Attempt"; flags:S; threshold:type threshold, track by_src, seconds 60, count 10; sid:1000003; rev:1;)
-alert tcp any any -> $HOME_NET 80 (msg:"CUSTOM: HTTP SQL Injection Attempt"; flow:to_server; content:"SELECT"; content:"FROM"; distance:0; sid:1000004; rev:1;)
-alert tcp any any -> $HOME_NET any (msg:"CUSTOM: Port Scan Detected"; flags:S; threshold:type threshold, track by_src, seconds 10, count 10; sid:1000005; rev:1;)
-''',
-            'web-attacks.rules': '''
-# Web Attack Detection Rules
-alert http any any -> $HTTP_SERVERS $HTTP_PORTS (msg:"WEB: XSS Attack Attempt"; flow:to_server; content:"<script"; nocase; sid:2000001; rev:1;)
-alert http any any -> $HTTP_SERVERS $HTTP_PORTS (msg:"WEB: Command Injection Attempt"; flow:to_server; content:"|3B|"; content:"system"; distance:0; sid:2000002; rev:1;)
-alert http any any -> $HTTP_SERVERS $HTTP_PORTS (msg:"WEB: Directory Traversal Attempt"; flow:to_server; content:"../"; sid:2000003; rev:1;)
-alert http any any -> $HTTP_SERVERS $HTTP_PORTS (msg:"WEB: PHP Code Injection"; flow:to_server; content:"<?php"; nocase; sid:2000004; rev:1;)
-''',
-            'malware-detection.rules': '''
-# Malware Detection Rules
-alert tcp any any -> $HOME_NET any (msg:"MALWARE: Known C&C Communication"; flow:to_server; content:"botnet"; sid:3000001; rev:1;)
-alert http any any -> $EXTERNAL_NET any (msg:"MALWARE: Suspicious User Agent"; flow:to_server, to_client; http_user_agent; content:"malware"; sid:3000002; rev:1;)
-alert tcp any any -> $HOME_NET any (msg:"MALWARE: Ransomware Communication Pattern"; flow:to_server; content:"encrypt"; content:"payment"; sid:3000003; rev:1;)
-''',
-            'network-scan.rules': '''
-# Network Scanning Detection Rules
-alert tcp any any -> $HOME_NET any (msg:"SCAN: NMAP TCP Connect Scan"; flags:S; threshold:type threshold, track by_src, seconds 30, count 15; sid:4000001; rev:1;)
-alert tcp any any -> $HOME_NET any (msg:"SCAN: NMAP SYN Scan"; flags:S; threshold:type threshold, track by_src, seconds 10, count 20; sid:4000002; rev:1;)
-alert udp any any -> $HOME_NET any (msg:"SCAN: UDP Port Scan"; threshold:type threshold, track by_src, seconds 30, count 10; sid:4000003; rev:1;)
-'''
-        }
-        
-        for filename, content in rules_content.items():
-            rule_file = self.rules_dir / filename
-            with open(rule_file, 'w') as f:
-                f.write(content.strip())
-            logger.info(f"Created rule file: {rule_file}")
-    
-    def create_config_files(self):
-        """Create additional configuration files"""
-        # Classification config
-        classification_content = '''
-config classification: not-suspicious,Not Suspicious Traffic,3
-config classification: unknown,Unknown Traffic,3
-config classification: bad-unknown,Potentially Bad Traffic,2
-config classification: attempted-recon,Attempted Information Leak,2
-config classification: successful-recon-limited,Information Leak,2
-config classification: successful-recon-largescale,Large Scale Information Leak,2
-config classification: attempted-dos,Attempted Denial of Service,2
-config classification: successful-dos,Denial of Service,2
-config classification: attempted-user,Attempted User Privilege Gain,1
-config classification: unsuccessful-user,Unsuccessful User Privilege Gain,1
-config classification: successful-user,Successful User Privilege Gain,1
-config classification: attempted-admin,Attempted Administrator Privilege Gain,1
-config classification: successful-admin,Successful Administrator Privilege Gain,1
-config classification: rpc-portmap-decode,Decode of RPC Query,2
-config classification: shellcode-detect,Executable code was detected,1
-config classification: string-detect,A suspicious string was detected,3
-config classification: suspicious-filename-detect,A suspicious filename was detected,2
-config classification: suspicious-login,An attempted login using a suspicious username was detected,2
-config classification: system-call-detect,A system call was detected,2
-config classification: tcp-connection,A TCP connection was detected,4
-config classification: trojan-activity,A Network Trojan was detected,1
-config classification: unusual-client-port-connection,A client was using an unusual port,2
-config classification: network-scan,Detection of a Network Scan,3
-config classification: denial-of-service,Detection of a Denial of Service Attack,2
-config classification: non-standard-protocol,Detection of a non-standard protocol or event,2
-config classification: protocol-command-decode,Generic Protocol Command Decode,3
-config classification: web-application-activity,access to a potentially vulnerable web application,2
-config classification: web-application-attack,Web Application Attack,1
-config classification: misc-activity,Misc activity,3
-config classification: misc-attack,Misc Attack,2
-config classification: icmp-event,Generic ICMP event,3
-config classification: inappropriate-content,Inappropriate Content was Detected,1
-config classification: policy-violation,Potential Corporate Privacy Violation,1
-config classification: default-login-attempt,Attempt to login by a default username and password,2
-'''
-        
-        # Reference config
-        reference_content = '''
-config reference: bugtraq   http://www.securityfocus.com/bid/
-config reference: bid       http://www.securityfocus.com/bid/
-config reference: cve       http://cve.mitre.org/cgi-bin/cvename.cgi?name=
-config reference: arachNIDS http://www.whitehats.com/info/IDS
-config reference: McAfee    http://vil.nai.com/vil/content/v_
-config reference: nessus    http://cgi.nessus.org/plugins/dump.php3?id=
-config reference: url       http://
-config reference: et        http://doc.emergingthreats.net/
-config reference: etpro     http://doc.emergingthreatspro.com/
-'''
-        
-        # Threshold config
-        threshold_content = '''
-# Threshold configuration
-# Format: threshold gen_id <gid>, sig_id <sid>, type <threshold|limit|both>, track <by_src|by_dst>, count <c>, seconds <s>
+def ensure_dirs():
+    for p in [REPO_SURICATA_DIR, REPO_LOG_DIR, REPO_SURICATA_DIR / "rules", REPO_SURICATA_DIR / "configs"]:
+        p.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Created directory: {p}")
 
-# Suppress noisy rules
-suppress gen_id 1, sig_id 2100498
-suppress gen_id 1, sig_id 2103461
+ensure_dirs()
 
-# Rate limit DNS queries
-threshold gen_id 1, sig_id 2100366, type limit, track by_src, count 1, seconds 60
+def resolve_eve_paths():
+    """Decide which eve.json to tail, preferring Windows service location when present."""
+    win_eve = WIN_DEFAULT_LOG_DIR / "eve.json"
+    repo_eve = REPO_LOG_DIR / "eve.json"
+    candidates = []
+    if platform.system().lower() == "windows" and win_eve.exists():
+        candidates.append(win_eve)
+    if repo_eve.exists():
+        candidates.append(repo_eve)
+    # If none exist yet, prefer Windows path if directory exists, else repo path
+    if not candidates:
+        if WIN_DEFAULT_LOG_DIR.exists():
+            return win_eve, True
+        return repo_eve, False
+    # Choose the most recently modified file
+    latest = max(candidates, key=lambda p: p.stat().st_mtime)
+    return latest, (latest == win_eve)
 
-# Rate limit HTTP requests
-threshold gen_id 1, sig_id 2100368, type threshold, track by_src, count 10, seconds 60
-'''
-        
-        config_files = {
-            'classification.config': classification_content,
-            'reference.config': reference_content,
-            'threshold.config': threshold_content
-        }
-        
-        for filename, content in config_files.items():
-            config_file = self.config_dir / filename
-            with open(config_file, 'w') as f:
-                f.write(content.strip())
-            logger.info(f"Created config file: {config_file}")
-    
-    def generate_suricata_yaml(self, interface='eth0'):
-        """Generate the main Suricata YAML configuration"""
-        config = self.load_external_config()
-        
-        # Handle Windows-specific configuration
-        if platform.system().lower() == 'windows':
-            # Remove af-packet configuration if it exists
-            if 'af-packet' in config:
-                del config['af-packet']
-            
-            # Add pcap configuration for Windows
-            config['pcap'] = {
-                'interface': interface,
-                'buffer-size': 1048576,
-                'bpf-filter': '',
-                'checksum-checks': 'auto'
-            }
-        
-        # Ensure all paths are absolute
-        config['default-log-dir'] = str(self.logs_dir.absolute())
-        config['default-rule-path'] = str(self.rules_dir.absolute())
-        config['classification-file'] = str(self.config_dir.absolute() / 'classification.config')
-        config['reference-config-file'] = str(self.config_dir.absolute() / 'reference.config')
-        config['threshold-file'] = str(self.config_dir.absolute() / 'threshold.config')
-        
-        # Write the configuration file
-        config_file = self.suricata_dir / 'suricata.yaml'
-        with open(config_file, 'w') as f:
-            yaml.dump(config, f, default_flow_style=False)
-        
-        logger.info(f"Generated Suricata config: {config_file}")
-        return str(config_file.absolute())
+class EveTailHandler(FileSystemEventHandler):
+    def __init__(self, file_path: Path, on_alert):
+        super().__init__()
+        self.file_path = file_path
+        self.on_alert = on_alert
+        self._pos = 0
+        self._lock = threading.Lock()
+        # Initialize position to EOF if file exists
+        if self.file_path.exists():
+            self._pos = self.file_path.stat().st_size
 
-class SuricataLogHandler(FileSystemEventHandler):
-    """Handler for monitoring Suricata log files"""
-    
-    def __init__(self, callback_function, log_file_path):
-        self.callback_function = callback_function
-        self.log_file_path = Path(log_file_path)
-        self.last_position = 0
-        
-    def on_modified(self, event):
-        if Path(event.src_path) == self.log_file_path:
-            self.process_new_logs()
-    
-    def process_new_logs(self):
-        """Process new log entries"""
-        try:
-            with open(self.log_file_path, 'r') as f:
-                f.seek(self.last_position)
-                new_lines = f.readlines()
-                self.last_position = f.tell()
-                
-                for line in new_lines:
-                    line = line.strip()
-                    if line:
+    def process_new_lines(self):
+        with self._lock:
+            if not self.file_path.exists():
+                return
+            try:
+                with self.file_path.open("r", encoding="utf-8", errors="replace") as f:
+                    f.seek(self._pos)
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
                         try:
-                            log_entry = json.loads(line)
-                            if log_entry.get('event_type') == 'alert':
-                                self.callback_function(log_entry)
+                            evt = json.loads(line)
                         except json.JSONDecodeError:
+                            # Partial writes or rotate: wait next tick
                             continue
-        except Exception as e:
-            logger.error(f"Error processing Suricata logs: {e}")
+                        if evt.get("event_type") == "alert" and "alert" in evt:
+                            try:
+                                self.on_alert(evt)
+                            except Exception as cb_err:
+                                logger.error(f"Alert callback error: {cb_err}")
+                    self._pos = f.tell()
+            except FileNotFoundError:
+                # Rotation: reset position
+                self._pos = 0
 
-class SuricataManager:
-    """Enhanced Suricata manager with external configuration support"""
-    
-    def __init__(self, base_dir=None, interface=None):
-        self.base_dir = Path(base_dir) if base_dir else Path(os.getcwd())
-        
-        # Auto-detect interface if not provided
-        if interface is None:
-            self.interface = self._detect_primary_interface()
-        else:
-            self.interface = interface
-            
-        self.config_manager = SuricataConfigManager(self.base_dir)
-        self.suricata_process = None
-        self.monitor_process = None
+    def on_modified(self, event):
+        if Path(event.src_path) == self.file_path:
+            self.process_new_lines()
+
+    def on_created(self, event):
+        # Reset on recreation (rotate/truncate)
+        if Path(event.src_path) == self.file_path:
+            self._pos = 0
+            self.process_new_lines()
+
+class SuricataWatcher:
+    def __init__(self, on_alert):
+        self.on_alert = on_alert
         self.observer = None
-        self.callback_function = None
-        
-        # Initialize configuration
-        self.setup_configuration()
-        
-    def _detect_primary_interface(self):
-        """Detect the primary network interface"""
-        try:
-            if platform.system().lower() == 'windows':
-                # First try the more detailed PowerShell method
-                cmd = [
-                    'powershell', '-Command',
-                    "(Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.MediaConnectionState -eq 'Connected' } | " +
-                    "Sort-Object -Property LinkSpeed -Descending | " +
-                    "Select-Object -First 1).Name"
-                ]
-                result = subprocess.run(cmd, capture_output=True, text=True)
-                if result.returncode == 0 and result.stdout.strip():
-                    interface = result.stdout.strip()
-                    logger.info(f"Detected primary interface (PowerShell): {interface}")
-                    return interface
+        self.handler = None
+        self.dir_to_watch = None
+        self.eve_path, self.using_windows_service = resolve_eve_paths()
+        logger.info(f"EVE target: {self.eve_path} (windows_service={self.using_windows_service})")
 
-                # Fallback to simpler ipconfig method
-                cmd = ['ipconfig']
-                result = subprocess.run(cmd, capture_output=True, text=True)
-                if result.returncode == 0:
-                    lines = result.stdout.split('\n')
-                    for i, line in enumerate(lines):
-                        if 'Ethernet adapter' in line or 'Wireless LAN adapter' in line:
-                            adapter_name = line.split('adapter')[-1].strip().rstrip(':')
-                            # Check if this adapter is connected
-                            for j in range(i, min(i + 5, len(lines))):
-                                if 'Media State' in lines[j] and 'Media disconnected' in lines[j]:
-                                    break
-                                if 'IPv4 Address' in lines[j]:
-                                    logger.info(f"Detected primary interface (ipconfig): {adapter_name}")
-                                    return adapter_name
-            else:
-                # For Linux/Unix systems
-                cmd = ['ip', 'route', 'show', 'default']
-                result = subprocess.run(cmd, capture_output=True, text=True)
-                if result.returncode == 0 and result.stdout:
-                    for line in result.stdout.split('\n'):
-                        if 'default via' in line:
-                            parts = line.split()
-                            for i, part in enumerate(parts):
-                                if part == 'dev':
-                                    interface = parts[i + 1]
-                                    logger.info(f"Detected primary interface (ip route): {interface}")
-                                    return interface
+    def start(self):
+        self.dir_to_watch = self.eve_path.parent
+        self.handler = EveTailHandler(self.eve_path, self.on_alert)
+        self.observer = Observer()
+        self.observer.schedule(self.handler, str(self.dir_to_watch), recursive=False)
+        self.observer.start()
+        logger.info(f"Watching directory for eve.json changes: {self.dir_to_watch}")
 
-        except Exception as e:
-            logger.error(f"Error detecting primary interface: {e}")
+        # Background thread to poll in case some editors don't trigger modify events
+        threading.Thread(target=self._poller, daemon=True).start()
 
-        # Fallback to system-specific default
-        default_interface = 'Ethernet' if platform.system().lower() == 'windows' else 'eth0'
-        logger.warning(f"Could not detect primary interface, using default: {default_interface}")
-        return default_interface
-        
-    def setup_configuration(self):
-        """Set up all configuration files"""
-        self.config_file = self.base_dir / 'suricata' / 'suricata.yaml'
-        if not self.config_file.exists():
-            raise FileNotFoundError(f"Suricata configuration file not found at {self.config_file}")
-        self.eve_json_path = self.config_manager.logs_dir / 'eve.json'
-        
-    def start_suricata(self, alert_callback=None):
-        """Start Suricata IDS"""
-        try:
-            if self.suricata_process and self.suricata_process.poll() is None:
-                logger.warning("Suricata is already running")
-                return True
-
-            # Check if Suricata is available
-            if not self.check_suricata_availability():
-                logger.error("Suricata is not available. Please install Suricata first.")
-                return False
-
-            # Use the existing config file from the suricata directory
-            config_file = self.base_dir / 'suricata' / 'suricata.yaml'
-            if not config_file.exists():
-                raise FileNotFoundError(f"Suricata configuration file not found at {config_file}")
-
-            suricata_path = Path(r'C:\Program Files\Suricata\suricata.exe')
-            
-            if platform.system().lower() == 'windows':
-                # Construct the command without extra quotes
-                cmd = (f'cmd /c start "Suricata IDS Monitor" /D "{suricata_path.parent}" '
-                      f'"{suricata_path}" -c "{config_file}" '
-                      f'--pcap-buffer-size=262144 --runmode=workers '
-                      f'--pcap={self.interface} -l "{self.config_manager.logs_dir}" -v')
-
-                logger.info(f"Starting Suricata with command: {cmd}")
-                
-                self.suricata_process = subprocess.Popen(
-                    cmd,
-                    shell=True,
-                    creationflags=subprocess.CREATE_NEW_CONSOLE
-                )
-
-                # Wait briefly to check if process started
-                time.sleep(2)
-                if self.suricata_process.poll() is not None:
-                    logger.error("Suricata process failed to start or terminated immediately")
-                    return False
-
-                logger.info(f"Suricata process started with PID: {self.suricata_process.pid}")
-                
-                # Start log monitoring if callback provided
-                if alert_callback:
-                    self.start_log_monitoring_with_watcher(alert_callback)
-                
-                return True
-
-        except Exception as e:
-            logger.error(f"Failed to start Suricata: {str(e)}")
-            return False
-
-    def check_suricata_availability(self):
-        """Check if Suricata is available in the system"""
-        try:
-            suricata_path = Path(r'C:\Program Files\Suricata\suricata.exe')
-            
-            # First check if the executable exists
-            if not suricata_path.exists():
-                logger.error(f"Suricata executable not found at {suricata_path}")
-                return False
-                
-            # Check if we have permission to execute it
-            if not os.access(str(suricata_path), os.X_OK):
-                logger.error(f"No permission to execute Suricata at {suricata_path}")
-                return False
-            
-            # Try to get version information
+    def _poller(self):
+        while True:
             try:
-                if platform.system().lower() == 'windows':
-                    # On Windows, we use -V for version
-                    result = subprocess.run([str(suricata_path), '-V'], 
-                                         capture_output=True, 
-                                         text=True, 
-                                         timeout=5,
-                                         creationflags=subprocess.CREATE_NO_WINDOW)
-                else:
-                    result = subprocess.run([str(suricata_path), '--version'], 
-                                         capture_output=True, 
-                                         text=True, 
-                                         timeout=5)
-                
-                if result.returncode == 0:
-                    version_output = result.stdout.strip()
-                    logger.info(f"Suricata version: {version_output}")
-                    return True
-                else:
-                    logger.error(f"Suricata version check failed with return code {result.returncode}")
-                    logger.error(f"stdout: {result.stdout}")
-                    logger.error(f"stderr: {result.stderr}")
-                    return False
-                    
-            except subprocess.TimeoutExpired:
-                logger.error("Timeout while checking Suricata version")
-                return False
+                self.handler.process_new_lines()
             except Exception as e:
-                logger.error(f"Error checking Suricata version: {str(e)}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error checking Suricata availability: {str(e)}")
-            return False
+                logger.error(f"Poller error: {e}")
+            time.sleep(1.5)
 
-    def create_monitor_script(self, monitor_script):
-        """Create the enhanced monitor script with clean output"""
-        monitor_content = '''import json
-import time
-import sys
-import os
-from pathlib import Path
-from datetime import datetime
-
-# Windows console color support
-if os.name == 'nt':
-    os.system('color')
-
-class Colors:
-    """ANSI color codes for cross-platform colored output"""
-    RED = '\\033[31m'
-    GREEN = '\\033[32m'
-    YELLOW = '\\033[33m'
-    BLUE = '\\033[34m'
-    MAGENTA = '\\033[35m'
-    CYAN = '\\033[36m'
-    WHITE = '\\033[37m'
-    BRIGHT_RED = '\\033[91m'
-    BRIGHT_GREEN = '\\033[92m'
-    BRIGHT_YELLOW = '\\033[93m'
-    BRIGHT_BLUE = '\\033[94m'
-    BRIGHT_MAGENTA = '\\033[95m'
-    BRIGHT_CYAN = '\\033[96m'
-    BRIGHT_WHITE = '\\033[97m'
-    RESET = '\\033[0m'
-
-def print_colored(text, color=Colors.WHITE):
-    """Print colored text with fallback for non-ANSI terminals"""
-    try:
-        print(f"{color}{text}{Colors.RESET}")
-    except:
-        print(text)
-
-def print_banner():
-    """Print startup banner"""
-    banner = f"""{Colors.CYAN}
-========================================================
-               SURICATA IDS LOG MONITOR
-========================================================
-{Colors.RESET}"""
-    print(banner)
-
-def get_severity_color(severity):
-    """Get color based on severity level"""
-    severity_colors = {
-        1: Colors.BRIGHT_RED,     # Critical
-        2: Colors.RED,            # High
-        3: Colors.YELLOW,         # Medium
-        4: Colors.GREEN,          # Low
-    }
-    return severity_colors.get(severity, Colors.WHITE)
-
-def format_alert(alert_data, alert_count):
-    """Format alert data for display"""
-    alert = alert_data.get('alert', {})
-    severity = alert.get('severity', 3)
-    
-    severity_color = get_severity_color(severity)
-    severity_text = {1: "CRITICAL", 2: "HIGH", 3: "MEDIUM", 4: "LOW"}.get(severity, "UNKNOWN")
-    
-    timestamp = datetime.now().strftime('%H:%M:%S')
-    
-    # Header
-    print_colored(f"\\nALERT #{alert_count} - {timestamp}", Colors.BRIGHT_WHITE)
-    print_colored("-" * 60, severity_color)
-    
-    # Alert details
-    print_colored(f"Signature:  {alert.get('signature', 'Unknown')}", Colors.WHITE)
-    print_colored(f"Category:   {alert.get('category', 'Unknown')}", Colors.WHITE)
-    print_colored(f"Severity:   {severity_text} ({severity})", severity_color)
-    print_colored(f"Source:     {alert_data.get('src_ip', 'Unknown')}:{alert_data.get('src_port', 'Unknown')}", Colors.CYAN)
-    print_colored(f"Target:     {alert_data.get('dest_ip', 'Unknown')}:{alert_data.get('dest_port', 'Unknown')}", Colors.CYAN)
-    print_colored(f"Protocol:   {alert_data.get('proto', 'Unknown')}", Colors.WHITE)
-    print_colored(f"SID:        {alert.get('signature_id', 'Unknown')}", Colors.WHITE)
-    
-    # Additional info if available
-    if alert_data.get('flow_id'):
-        print_colored(f"Flow ID:    {alert_data.get('flow_id')}", Colors.BLUE)
-    
-    if alert.get('rev'):
-        print_colored(f"Revision:   {alert.get('rev')}", Colors.WHITE)
-    
-    # Payload preview (first 100 chars)
-    if alert_data.get('payload_printable'):
-        payload = alert_data.get('payload_printable')[:100]
-        if len(alert_data.get('payload_printable', '')) > 100:
-            payload += "..."
-        print_colored(f"Payload:    {payload}", Colors.MAGENTA)
-    
-    print_colored("-" * 60, severity_color)
-
-def monitor_log_file(log_file_path):
-    """Monitor the log file for new alerts with enhanced display"""
-    log_file_path = Path(log_file_path)
-    last_position = 0
-    alert_count = 0
-    
-    print_banner()
-    print_colored(f"Log File:   {log_file_path}", Colors.WHITE)
-    print_colored(f"Started:    {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", Colors.WHITE)
-    print_colored("Stop:       Press Ctrl+C to stop monitoring", Colors.YELLOW)
-    print_colored("=" * 60, Colors.CYAN)
-    print_colored("Waiting for alerts...", Colors.GREEN)
-    
-    while True:
-        try:
-            if not log_file_path.exists():
-                print_colored("Waiting for log file to be created...", Colors.YELLOW)
-                time.sleep(2)
-                continue
-                
-            with open(log_file_path, 'r', encoding='utf-8') as f:
-                f.seek(last_position)
-                new_lines = f.readlines()
-                last_position = f.tell()
-                
-                for line in new_lines:
-                    line = line.strip()
-                    if line:
-                        try:
-                            entry = json.loads(line)
-                            if entry.get('event_type') == 'alert':
-                                alert_count += 1
-                                format_alert(entry, alert_count)
-                                
-                                # Beep for high severity alerts (Windows)
-                                alert_severity = entry.get('alert', {}).get('severity', 4)
-                                if alert_severity <= 2 and os.name == 'nt':
-                                    try:
-                                        import winsound
-                                        winsound.Beep(1000, 300)  # 1000Hz for 300ms
-                                    except ImportError:
-                                        pass
-                                        
-                        except json.JSONDecodeError as e:
-                            continue
-                            
-        except Exception as e:
-            print_colored(f"Error reading log file: {e}", Colors.RED)
-        
-        time.sleep(1)
-
-def main():
-    """Main function with argument handling and error management"""
-    if len(sys.argv) != 2:
-        print_colored("Usage: python monitor.py <path_to_eve.json>", Colors.RED)
-        print_colored("Example: python monitor.py C:\\\\path\\\\to\\\\eve.json", Colors.WHITE)
-        input("Press Enter to exit...")
-        sys.exit(1)
-    
-    log_file = sys.argv[1]
-    
-    try:
-        # Set console title on Windows
-        if os.name == 'nt':
-            os.system(f'title Suricata Log Monitor - {Path(log_file).name}')
-        
-        monitor_log_file(log_file)
-        
-    except KeyboardInterrupt:
-        print_colored("\\n\\nStopping Suricata Log Monitor...", Colors.YELLOW)
-        print_colored("Monitor stopped successfully!", Colors.GREEN)
-        input("Press Enter to close window...")
-        sys.exit(0)
-    except Exception as e:
-        print_colored(f"\\nFatal error: {e}", Colors.RED)
-        print_colored("Check the log file path and permissions.", Colors.YELLOW)
-        input("Press Enter to close window...")
-        sys.exit(1)
-
-if __name__ == '__main__':
-    main()
-'''
-        
-        with open(monitor_script, 'w', encoding='utf-8') as f:
-            f.write(monitor_content)
-
-    def start_log_monitoring(self, alert_callback=None):
-        """DEPRECATED: Start monitoring the eve.json file in a separate window.
-        This method is not suitable for web backend integration.
-        """
-        logger.warning("DEPRECATED: start_log_monitoring is not intended for backend use. Use start_log_monitoring_with_watcher instead.")
-        # The rest of this function is intentionally left as it was, but it will not be called by the app.
-        try:
-            # Ensure log file exists and directory structure
-            eve_log_path = Path(self.config_manager.suricata_dir) / 'logs' / 'eve.json'
-            eve_log_path.parent.mkdir(parents=True, exist_ok=True)
-            eve_log_path.touch(exist_ok=True)
-            
-            # Create monitor script with absolute path
-            monitor_script = Path(self.config_manager.suricata_dir) / 'log_monitor.py'
-            self.create_monitor_script(monitor_script)
-            
-            # Start the monitor in a new window using absolute paths
-            if platform.system() == 'Windows':
-                python_exe = sys.executable  # Get current Python interpreter path
-                monitor_cmd = f'"{python_exe}" "{monitor_script}" "{eve_log_path}"'
-                
-                self.monitor_process = subprocess.Popen(
-                    ['cmd', '/c', 'start', '"Suricata Log Monitor"', 'cmd', '/k', monitor_cmd],
-                    creationflags=subprocess.CREATE_NEW_CONSOLE | subprocess.CREATE_NEW_PROCESS_GROUP,
-                    cwd=str(self.config_manager.suricata_dir),
-                    env=os.environ.copy()
-                )
-                logger.info(f"Started log monitor in new window with PID: {self.monitor_process.pid}")
-                return True
-            else:
-                # Linux implementation
-                if os.environ.get('DISPLAY'):
-                    self.monitor_process = subprocess.Popen(
-                        ['gnome-terminal', '--title', 'Suricata Log Monitor', '--', 
-                         'python3', str(monitor_script), str(eve_log_path)]
-                    )
-                else:
-                    self.monitor_process = subprocess.Popen(
-                        ['python3', str(monitor_script), str(eve_log_path)]
-                    )
-                return True
-                
-        except Exception as e:
-            logger.error(f"Failed to start log monitoring: {e}")
-            return False
-
-    def start_log_monitoring_with_watcher(self, callback_function):
-        """Start monitoring eve.json using FileSystemEventHandler."""
-        try:
-            self.callback_function = callback_function
-            
-            # Ensure log file exists
-            eve_log_path = self.eve_json_path
-            eve_log_path.parent.mkdir(parents=True, exist_ok=True)
-            eve_log_path.touch(exist_ok=True)
-
-            # Create and start the observer
-            event_handler = SuricataLogHandler(self.process_alert, eve_log_path)
-            self.observer = Observer()
-            self.observer.schedule(event_handler, str(eve_log_path.parent), recursive=False)
-            self.observer.start()
-            
-            logger.info(f"Started log monitoring for: {eve_log_path}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to start log monitoring: {e}")
-            return False
-
-    def stop_log_monitoring(self):
-        """Stop the log monitor"""
+    def stop(self):
         if self.observer:
-            try:
-                self.observer.stop()
-                self.observer.join()
-                logger.info("Log monitoring stopped")
-            except Exception as e:
-                logger.error(f"Error stopping log monitor: {e}")
-    
-    def process_alert(self, alert_data):
-        """Process and forward alerts"""
-        try:
-            # Forward the raw Suricata event so downstream code can parse the expected structure
-            # (i.e., fields under the nested 'alert' object). Formatting/mapping happens in the app layer.
-            if self.callback_function:
-                self.callback_function(alert_data)
-                
-        except Exception as e:
-            logger.error(f"Error processing alert: {e}")
-    
-    def get_rule_source(self, signature_id):
-        """Determine which rule file triggered the alert"""
-        if not signature_id:
-            return 'unknown'
-        
-        try:
-            sid = int(signature_id)
-            if 1000000 <= sid < 2000000:
-                return 'custom-security.rules'
-            elif 2000000 <= sid < 3000000:
-                return 'web-attacks.rules'
-            elif 3000000 <= sid < 4000000:
-                return 'malware-detection.rules'
-            elif 4000000 <= sid < 5000000:
-                return 'network-scan.rules'
-            else:
-                return 'external.rules'
-        except (ValueError, TypeError):
-            return 'unknown'
-    
-    def map_severity(self, suricata_severity):
-        """Map Suricata severity to application severity"""
-        severity_map = {1: 'Critical', 2: 'High', 3: 'Medium', 4: 'Low'}
-        return severity_map.get(suricata_severity, 'Medium')
-    
-    def reload_rules(self):
-        """Reload Suricata rules without restarting"""
-        if self.suricata_process and self.suricata_process.poll() is None:
-            try:
-                # Send USR2 signal to reload rules (Unix/Linux)
-                if platform.system() != 'Windows':
-                    os.kill(self.suricata_process.pid, signal.SIGUSR2)
-                    logger.info("Reloaded Suricata rules")
-                else:
-                    logger.warning("Rule reloading not supported on Windows without restart")
-            except Exception as e:
-                logger.error(f"Failed to reload rules: {e}")
-    
-    def stop_suricata(self):
-        """Stop Suricata and cleanup"""
-        try:
-            # Stop the monitor process
-            if hasattr(self, 'monitor_process') and self.monitor_process:
-                try:
-                    if platform.system() == 'Windows':
-                        # Better process termination for Windows
-                        subprocess.run(['taskkill', '/F', '/T', '/PID', str(self.monitor_process.pid)], 
-                                     timeout=10, capture_output=True)
-                    else:
-                        self.monitor_process.terminate()
-                        self.monitor_process.wait(timeout=5)
-                    logger.info("Monitor process stopped")
-                except (subprocess.TimeoutExpired, ProcessLookupError) as e:
-                    logger.warning(f"Failed to stop monitor process gracefully: {e}")
-        
-            # Stop Suricata process
-            if self.suricata_process:
-                try:
-                    if platform.system() == 'Windows':
-                        # For Windows, try to terminate gracefully first
-                        subprocess.run(['taskkill', '/PID', str(self.suricata_process.pid)], 
-                                     timeout=10, capture_output=True)
-                    else:
-                        self.suricata_process.terminate()
-                        self.suricata_process.wait(timeout=10)
-                    logger.info("Suricata stopped successfully")
-                except (subprocess.TimeoutExpired, ProcessLookupError) as e:
-                    logger.warning(f"Failed to stop Suricata gracefully: {e}")
-                    
-        except Exception as e:
-            logger.error(f"Error stopping Suricata: {e}")
-    
-    def get_status(self):
-        """Get comprehensive status"""
-        suricata_running = False
-        monitor_running = False
-        
-        if self.suricata_process:
-            suricata_running = self.suricata_process.poll() is None
-            
-        if hasattr(self, 'monitor_process') and self.monitor_process:
-            monitor_running = self.monitor_process.poll() is None
-        
-        return {
-            'suricata_running': suricata_running,
-            'monitor_running': monitor_running,
-            'suricata_pid': self.suricata_process.pid if self.suricata_process else None,
-            'monitor_pid': getattr(self.monitor_process, 'pid', None) if hasattr(self, 'monitor_process') else None,
-            'config_file': str(self.config_file),
-            'rules_directory': str(self.config_manager.rules_dir),
-            'logs_directory': str(self.config_manager.logs_dir),
-            'rule_files': self.config_manager.get_rule_files(),
-            'log_file': str(self.eve_json_path)
-        }
+            self.observer.stop()
+            self.observer.join()
+
+# Example alert callback: enrich/route to DB, JIRA, Slack, etc.
+def handle_suricata_alert(evt: dict):
+    # Minimal demonstration log
+    sig = evt.get("alert", {}).get("signature", "unknown")
+    sev = evt.get("alert", {}).get("severity")
+    src = f"{evt.get('src_ip')}:{evt.get('src_port')}"
+    dst = f"{evt.get('dest_ip')}:{evt.get('dest_port')}"
+    logger.info(f"SURICATA ALERT: [{sev}] {sig} {src} -> {dst}")
+
+def start_suricata_tail(on_alert=handle_suricata_alert):
+    watcher = SuricataWatcher(on_alert=on_alert)
+    watcher.start()
+    return watcher
+
+if __name__ == "__main__":
+    # Manual run for local testing
+    watcher = start_suricata_tail()
+    try:
+        while True:
+            time.sleep(10)
+    except KeyboardInterrupt:
+        watcher.stop()

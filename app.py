@@ -39,6 +39,49 @@ print("====================================")
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})  # More explicit CORS configuration
 socketio = SocketIO(app, cors_allowed_origins="*")
+# app.py (excerpt)
+from suricata_integration import start_suricata_tail
+from datetime import datetime
+
+def persist_alert(evt: dict):
+    try:
+        alert = {
+            "message": evt.get("alert", {}).get("signature", "Suricata alert"),
+            "severity": str(evt.get("alert", {}).get("severity", "3")),
+            "recommendations": {"immediate": ["Review Suricata alert"]},
+            "additional_data": evt,  # store full event for later analysis
+        }
+        # Create a SecurityEvent row if available, else Alert as fallback
+        try:
+            from models import SecurityEvent
+            event = SecurityEvent(
+                message=alert["message"],
+                severity=alert["severity"],
+                recommendations=alert["recommendations"],
+                additional_data=alert["additional_data"],
+            )
+            db.session.add(event)
+            db.session.commit()
+        except Exception:
+            from models import Alert
+            a = Alert(
+                message=alert["message"],
+                severity=alert["severity"],
+                recommendations=alert["recommendations"],
+                additional_data=alert["additional_data"],
+            )
+            db.session.add(a)
+            db.session.commit()
+    except Exception as e:
+        app.logger.error(f"Failed to persist Suricata alert: {e}")
+
+# Start tailer in background when app starts
+_suricata_watcher = None
+@app.before_first_request
+def _start_suricata():
+    global _suricata_watcher
+    if _suricata_watcher is None:
+        _suricata_watcher = start_suricata_tail(on_alert=persist_alert)
 
 # --- Suricata Integration ---
 suricata_manager = None
