@@ -417,7 +417,7 @@ class SuricataManager:
             
             # Start log monitoring
             if alert_callback:
-                self.start_log_monitoring(alert_callback)
+                self.start_log_monitoring_with_watcher(alert_callback)
             
             logger.info(f"Suricata started successfully with PID: {self.suricata_process.pid}")
             return True
@@ -441,7 +441,6 @@ class SuricataManager:
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
 
-    
     def create_monitor_script(self, monitor_script):
         """Create the enhanced monitor script with clean output"""
         monitor_content = '''import json
@@ -623,9 +622,13 @@ if __name__ == '__main__':
         
         with open(monitor_script, 'w', encoding='utf-8') as f:
             f.write(monitor_content)
-    
-    def start_log_monitoring(self):
-        """Start monitoring the eve.json file in a separate window"""
+
+    def start_log_monitoring(self, alert_callback=None):
+        """DEPRECATED: Start monitoring the eve.json file in a separate window.
+        This method is not suitable for web backend integration.
+        """
+        logger.warning("DEPRECATED: start_log_monitoring is not intended for backend use. Use start_log_monitoring_with_watcher instead.")
+        # The rest of this function is intentionally left as it was, but it will not be called by the app.
         try:
             # Ensure log file exists and directory structure
             eve_log_path = Path(self.config_manager.suricata_dir) / 'logs' / 'eve.json'
@@ -666,11 +669,13 @@ if __name__ == '__main__':
             logger.error(f"Failed to start log monitoring: {e}")
             return False
 
-    def start_log_monitoring_with_watcher(self):
-        """Start monitoring eve.json using FileSystemEventHandler"""
+    def start_log_monitoring_with_watcher(self, callback_function):
+        """Start monitoring eve.json using FileSystemEventHandler."""
         try:
+            self.callback_function = callback_function
+            
             # Ensure log file exists
-            eve_log_path = Path(self.config_manager.suricata_dir) / 'logs' / 'eve.json'
+            eve_log_path = self.eve_json_path
             eve_log_path.parent.mkdir(parents=True, exist_ok=True)
             eve_log_path.touch(exist_ok=True)
 
