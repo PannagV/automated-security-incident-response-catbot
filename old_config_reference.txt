@@ -1,0 +1,27 @@
+# Commented out as this is now handled by suricata.yaml directly
+"""
+    def get_default_config(self):
+        # This function is no longer used as configuration is managed through suricata.yaml
+        # Keeping for reference
+        return {
+            'vars': {
+                'address-groups': {
+                    'HOME_NET': '[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]',
+                    'EXTERNAL_NET': '!$HOME_NET',
+                    'HTTP_SERVERS': '$HOME_NET',
+                    'SMTP_SERVERS': '$HOME_NET',
+                    'SQL_SERVERS': '$HOME_NET',
+                    'DNS_SERVERS': '$HOME_NET',
+                    'TELNET_SERVERS': '$HOME_NET',
+                    'AIM_SERVERS': '$EXTERNAL_NET',
+                    'DC_SERVERS': '$HOME_NET',
+                    'DNP3_SERVER': '$HOME_NET',
+                    'DNP3_CLIENT': '$HOME_NET',
+                    'MODBUS_CLIENT': '$HOME_NET',
+                    'MODBUS_SERVER': '$HOME_NET',
+                    'ENIP_CLIENT': '$HOME_NET',
+                    'ENIP_SERVER': '$HOME_NET'
+                }
+            }
+        }
+"""

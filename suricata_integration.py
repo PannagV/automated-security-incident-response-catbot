@@ -54,21 +54,21 @@ class SuricataConfigManager:
     def load_external_config(self, config_file_path=None):
         """Load external Suricata configuration"""
         if config_file_path is None:
-            config_file_path = self.base_dir / 'config' / 'suricata_config.yaml'
+            config_file_path = self.base_dir / 'suricata' / 'suricata.yaml'
         
         try:
             with open(config_file_path, 'r') as f:
                 config = yaml.safe_load(f)
             return config
         except FileNotFoundError:
-            logger.warning(f"Config file not found: {config_file_path}")
-            return self.get_default_config()
+            logger.warning(f"Config file not found: {config_file_path}, will generate new configuration")
+            return self.generate_base_config()
         except Exception as e:
             logger.error(f"Error loading config: {e}")
-            return self.get_default_config()
+            return self.generate_base_config()
     
-    def get_default_config(self):
-        """Return default configuration"""
+    def generate_base_config(self):
+        """Generate base configuration for Suricata"""
         is_windows = platform.system().lower() == 'windows'
         
         config = {
@@ -147,12 +147,12 @@ class SuricataConfigManager:
             },
             # Windows-specific configuration
             'pcap': {
-                'interface': interface,
+                'interface': self._detect_primary_interface(),
                 'buffer-size': 1048576,
                 'checksum-checks': 'auto',
                 'bpf-filter': ''
             } if platform.system().lower() == 'windows' else {
-                'interface': interface
+                'interface': self._detect_primary_interface()
             },
             'detect-engine': [
                 {'profile': 'medium'},
@@ -371,9 +371,15 @@ class SuricataLogHandler(FileSystemEventHandler):
 class SuricataManager:
     """Enhanced Suricata manager with external configuration support"""
     
-    def __init__(self, base_dir=None, interface='eth0'):
+    def __init__(self, base_dir=None, interface=None):
         self.base_dir = Path(base_dir) if base_dir else Path(os.getcwd())
-        self.interface = interface
+        
+        # Auto-detect interface if not provided
+        if interface is None:
+            self.interface = self._detect_primary_interface()
+        else:
+            self.interface = interface
+            
         self.config_manager = SuricataConfigManager(self.base_dir)
         self.suricata_process = None
         self.monitor_process = None
@@ -382,6 +388,60 @@ class SuricataManager:
         
         # Initialize configuration
         self.setup_configuration()
+        
+    def _detect_primary_interface(self):
+        """Detect the primary network interface"""
+        try:
+            if platform.system().lower() == 'windows':
+                # First try the more detailed PowerShell method
+                cmd = [
+                    'powershell', '-Command',
+                    "(Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.MediaConnectionState -eq 'Connected' } | " +
+                    "Sort-Object -Property LinkSpeed -Descending | " +
+                    "Select-Object -First 1).Name"
+                ]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0 and result.stdout.strip():
+                    interface = result.stdout.strip()
+                    logger.info(f"Detected primary interface (PowerShell): {interface}")
+                    return interface
+
+                # Fallback to simpler ipconfig method
+                cmd = ['ipconfig']
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    lines = result.stdout.split('\n')
+                    for i, line in enumerate(lines):
+                        if 'Ethernet adapter' in line or 'Wireless LAN adapter' in line:
+                            adapter_name = line.split('adapter')[-1].strip().rstrip(':')
+                            # Check if this adapter is connected
+                            for j in range(i, min(i + 5, len(lines))):
+                                if 'Media State' in lines[j] and 'Media disconnected' in lines[j]:
+                                    break
+                                if 'IPv4 Address' in lines[j]:
+                                    logger.info(f"Detected primary interface (ipconfig): {adapter_name}")
+                                    return adapter_name
+            else:
+                # For Linux/Unix systems
+                cmd = ['ip', 'route', 'show', 'default']
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0 and result.stdout:
+                    for line in result.stdout.split('\n'):
+                        if 'default via' in line:
+                            parts = line.split()
+                            for i, part in enumerate(parts):
+                                if part == 'dev':
+                                    interface = parts[i + 1]
+                                    logger.info(f"Detected primary interface (ip route): {interface}")
+                                    return interface
+
+        except Exception as e:
+            logger.error(f"Error detecting primary interface: {e}")
+
+        # Fallback to system-specific default
+        default_interface = 'Ethernet' if platform.system().lower() == 'windows' else 'eth0'
+        logger.warning(f"Could not detect primary interface, using default: {default_interface}")
+        return default_interface
         
     def setup_configuration(self):
         """Set up all configuration files"""
