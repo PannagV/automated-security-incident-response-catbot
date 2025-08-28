@@ -247,7 +247,41 @@ const SuricataLogMonitor = () => {
             return `${formatTimestamp(alert.timestamp)} ${getSeverityPrefix(alert.severity)} ${alert.signature}`;
         }
         
-        return `${formatTimestamp(alert.timestamp)} ${getSeverityPrefix(alert.severity)} [${alert.protocol}] ${alert.source_ip}:${alert.source_port} -> ${alert.dest_ip}:${alert.dest_port} | ${alert.signature} | Category: ${alert.category}`;
+        // Start with timestamp, severity, and signature which should always be present
+        let logEntry = `${formatTimestamp(alert.timestamp)} ${getSeverityPrefix(alert.severity)}`;
+        
+        // Add protocol if defined
+        if (alert.protocol && alert.protocol !== 'undefined') {
+            logEntry += ` [${alert.protocol}]`;
+        }
+        
+        // Add source and destination information if they're defined
+        if (alert.source_ip && alert.source_ip !== 'undefined') {
+            logEntry += ` ${alert.source_ip}`;
+            if (alert.source_port && alert.source_port !== 'undefined') {
+                logEntry += `:${alert.source_port}`;
+            }
+            
+            // Only add the arrow if we have a destination
+            if (alert.dest_ip && alert.dest_ip !== 'undefined') {
+                logEntry += ' -> ';
+                logEntry += alert.dest_ip;
+                if (alert.dest_port && alert.dest_port !== 'undefined') {
+                    logEntry += `:${alert.dest_port}`;
+                }
+            }
+            logEntry += ' |';
+        }
+        
+        // Add the signature
+        logEntry += ` ${alert.signature}`;
+        
+        // Only add category if it's defined and not empty
+        if (alert.category && alert.category !== 'undefined') {
+            logEntry += ` | Category: ${alert.category}`;
+        }
+        
+        return logEntry;
     };
 
     const filteredAlerts = alerts.filter(alert => {

@@ -432,11 +432,37 @@ class SuricataManager:
             
             # Start Suricata process
             if platform.system() == 'Windows':
-                # Start in a new terminal window on Windows
-                self.suricata_process = subprocess.Popen(
-                    ['cmd', '/c', 'start', f'"{Path(sys.executable).name.upper()} - Suricata IDS"', ' '.join(cmd)],
-                    creationflags=subprocess.CREATE_NEW_CONSOLE
-                )
+                try:
+                    # Create a command string that we can log
+                    cmd_str = ' '.join(cmd)
+                    logger.info(f"Attempting to start Suricata with command: {cmd_str}")
+                    
+                    # Start in a new terminal window on Windows
+                    logger.info("Attempting to start Suricata process...")
+                    self.suricata_process = subprocess.Popen(
+                        cmd,
+                        creationflags=subprocess.CREATE_NEW_CONSOLE,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE
+                    )
+                    
+                    # Wait a moment to check if the process started successfully
+                    time.sleep(2)
+                    if self.suricata_process.poll() is not None:
+                        # Process terminated quickly, try to get error output
+                        stdout, stderr = self.suricata_process.communicate()
+                        logger.error(f"Suricata process failed to start or terminated immediately")
+                        if stdout:
+                            logger.error(f"Suricata output: {stdout.decode()}")
+                        if stderr:
+                            logger.error(f"Suricata error: {stderr.decode()}")
+                        return False
+                    
+                    logger.info(f"Suricata process started successfully with PID: {self.suricata_process.pid}")
+                        
+                except Exception as e:
+                    logger.error(f"Failed to start Suricata process: {str(e)}")
+                    return False
             else:
                 # Default behavior for other OS
                 self.suricata_process = subprocess.Popen(
@@ -465,14 +491,52 @@ class SuricataManager:
     def check_suricata_availability(self):
         """Check if Suricata is available in the system"""
         try:
-            suricata_path = r'C:\Program Files\Suricata\suricata.exe'
-            result = subprocess.run([suricata_path, '--version'], 
-                                capture_output=True, text=True, timeout=5)
-            if result.returncode == 0:
-                logger.info(f"Suricata version: {result.stdout.strip()}")
-                return True
-            return False
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+            suricata_path = Path(r'C:\Program Files\Suricata\suricata.exe')
+            
+            # First check if the executable exists
+            if not suricata_path.exists():
+                logger.error(f"Suricata executable not found at {suricata_path}")
+                return False
+                
+            # Check if we have permission to execute it
+            if not os.access(str(suricata_path), os.X_OK):
+                logger.error(f"No permission to execute Suricata at {suricata_path}")
+                return False
+            
+            # Try to get version information
+            try:
+                if platform.system().lower() == 'windows':
+                    # On Windows, we use -V for version
+                    result = subprocess.run([str(suricata_path), '-V'], 
+                                         capture_output=True, 
+                                         text=True, 
+                                         timeout=5,
+                                         creationflags=subprocess.CREATE_NO_WINDOW)
+                else:
+                    result = subprocess.run([str(suricata_path), '--version'], 
+                                         capture_output=True, 
+                                         text=True, 
+                                         timeout=5)
+                
+                if result.returncode == 0:
+                    version_output = result.stdout.strip()
+                    logger.info(f"Suricata version: {version_output}")
+                    return True
+                else:
+                    logger.error(f"Suricata version check failed with return code {result.returncode}")
+                    logger.error(f"stdout: {result.stdout}")
+                    logger.error(f"stderr: {result.stderr}")
+                    return False
+                    
+            except subprocess.TimeoutExpired:
+                logger.error("Timeout while checking Suricata version")
+                return False
+            except Exception as e:
+                logger.error(f"Error checking Suricata version: {str(e)}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error checking Suricata availability: {str(e)}")
             return False
 
     def create_monitor_script(self, monitor_script):
