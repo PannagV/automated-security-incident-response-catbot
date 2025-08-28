@@ -89,3 +89,9 @@
 2025-08-28 19:59:19,960 - __main__ - INFO - SuricataManager initialized successfully.
 2025-08-28 19:59:19,961 - werkzeug - WARNING -  * Debugger is active!
 2025-08-28 19:59:19,970 - werkzeug - INFO -  * Debugger PIN: 497-607-750
+2025-08-28 19:59:42,678 - __main__ - INFO - additional_data column already exists
+2025-08-28 19:59:42,689 - __main__ - INFO - additional_data column already exists
+2025-08-28 19:59:54,825 - __main__ - INFO - additional_data column already exists
+2025-08-28 19:59:54,833 - __main__ - INFO - additional_data column already exists
+2025-08-28 19:59:55,010 - __main__ - INFO - additional_data column already exists
+2025-08-28 19:59:55,016 - __main__ - INFO - additional_data column already exists

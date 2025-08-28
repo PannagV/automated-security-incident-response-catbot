@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import CyberEducation from './CyberEducation';
+import { Link } from 'react-router-dom';
 
 const ThreatIntelligenceDashboard = () => {
     const [threats, setThreats] = useState([]);
@@ -140,6 +141,9 @@ const ThreatIntelligenceDashboard = () => {
                             AI-Powered Threat Intelligence Dashboard
                         </h1>
                         <div className="d-flex gap-2">
+                            <Link to="/" className="btn btn-outline-secondary">
+                                <i className="fas fa-arrow-left me-2"></i>Back to Dashboard
+                            </Link>
                             <button
                                 className={`btn btn-${simulationStatus === 'running' ? 'danger' : 'success'}`}
                                 onClick={() => controlSimulation(simulationStatus === 'running' ? 'stop' : 'start')}

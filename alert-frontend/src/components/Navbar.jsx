@@ -48,6 +48,13 @@ const Navbar = ({ activeTab, setActiveTab, alertCount }) => {
         </button>
         
         <button 
+          className={`nav-link me-2 ${activeTab === 'live-alerts' ? 'active' : ''}`}
+          onClick={() => setActiveTab('live-alerts')}
+        >
+          <i className="bi bi-terminal me-2"></i>Log Monitor
+        </button>
+        
+        <button 
           className={`nav-link me-2 ${activeTab === 'dashboard' ? 'active' : ''}`}
           onClick={() => setActiveTab('dashboard')}
         >
