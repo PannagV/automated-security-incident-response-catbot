@@ -473,13 +473,39 @@ class SuricataManager:
             suricata_path = r'C:\Program Files\Suricata\suricata.exe'
             
             if platform.system().lower() == 'windows':
-                cmd = [
-                    suricata_path,
-                    '--pcap=' + self.interface,  # Use pcap capture on Windows
-                    '-c', str(config_file),
-                    '-l', str(self.config_manager.logs_dir),
-                    '-v'  # Verbose output
+                # For Windows, we need to use PowerShell to run with elevation
+                powershell_cmd = [
+                    'powershell.exe',
+                    '-Command',
+                    'Start-Process',
+                    '-FilePath', suricata_path,
+                    '-ArgumentList',
+                    f'"-c {str(config_file)} --pcap={self.interface} -l {str(self.config_manager.logs_dir)} -v"',
+                    '-Verb', 'RunAs',
+                    '-WindowStyle', 'Normal',
+                    '-Wait'
                 ]
+                
+                logger.info(f"Starting Suricata with command: {' '.join(powershell_cmd)}")
+                try:
+                    self.suricata_process = subprocess.Popen(
+                        powershell_cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        creationflags=subprocess.CREATE_NEW_CONSOLE | subprocess.CREATE_NO_WINDOW
+                    )
+                    
+                    # Wait a short time to check if the process started successfully
+                    time.sleep(2)
+                    if self.suricata_process.poll() is not None:
+                        exit_code = self.suricata_process.poll()
+                        stdout, stderr = self.suricata_process.communicate()
+                        raise RuntimeError(f"Suricata failed to start. Exit code: {exit_code}. "
+                                        f"stdout: {stdout.decode() if stdout else ''}, "
+                                        f"stderr: {stderr.decode() if stderr else ''}")
+                except Exception as e:
+                    logger.error(f"Failed to start Suricata: {str(e)}")
+                    raise
             else:
                 cmd = [
                     suricata_path,
@@ -488,6 +514,13 @@ class SuricataManager:
                     '-l', str(self.config_manager.logs_dir),
                     '-v'  # Verbose output
                 ]
+                
+                logger.info(f"Starting Suricata with command: {' '.join(cmd)}")
+                self.suricata_process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
 
             logger.info(f"Starting Suricata with command: {' '.join(cmd)}")
             
