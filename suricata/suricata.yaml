@@ -1280,15 +1280,11 @@ coredump:
 # This feature is currently only used by the reject* keywords.
 host-mode: auto
 
-# Number of packets preallocated per thread. The default is 1024. A higher number 
-# will make sure each CPU will be more easily kept busy, but may negatively 
-# impact caching.
-#max-pending-packets: 1024
+# Number of packets preallocated per thread. Lower for Windows stability
+max-pending-packets: 512
 
-# Runmode the engine should use. Please check --list-runmodes to get the available
-# runmodes for each packet acquisition method. Default depends on selected capture
-# method. 'workers' generally gives best performance.
-#runmode: autofp
+# Runmode the engine should use. Workers mode is more stable on Windows
+runmode: workers
 
 # Specifies the kind of flow load balancer used by the flow pinned autofp mode.
 #
@@ -1596,12 +1592,13 @@ flow-timeouts:
 #                               # is used in a rule.
 #
 stream:
-  memcap: 64mb
-  #memcap-policy: ignore
-  checksum-validation: yes      # reject incorrect csums
-  #midstream: false
-  #midstream-policy: ignore
-  inline: auto                  # auto will use inline mode in IPS mode, yes or no set it statically
+  memcap: 32mb                  # Reduced for Windows stability
+  memcap-policy: ignore        # More lenient memory handling
+  checksum-validation: no      # Disable checksum validation on Windows
+  midstream: false
+  inline: no                   # Disable inline mode for Windows
+  bypass: yes                  # Enable stream bypass
+  prealloc-sessions: 2048     # Lower prealloc sessions for Windows
   reassembly:
     # experimental TCP urgent handling logic
     #urgent:
@@ -1758,7 +1755,8 @@ spm-algo: auto
 
 # Suricata is multi-threaded. Here the threading can be influenced.
 threading:
-  set-cpu-affinity: no
+  set-cpu-affinity: no         # Disable CPU affinity for Windows
+  detect-thread-ratio: 1.0     # Conservative thread ratio for Windows
   # Tune cpu affinity of threads. Each family of threads can be bound
   # to specific CPUs.
   #

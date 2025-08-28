@@ -469,178 +469,37 @@ class SuricataManager:
             if not config_file.exists():
                 raise FileNotFoundError(f"Suricata configuration file not found at {config_file}")
 
-            # Suricata command with full path
-            suricata_path = r'C:\Program Files\Suricata\suricata.exe'
+            suricata_path = Path(r'C:\Program Files\Suricata\suricata.exe')
             
             if platform.system().lower() == 'windows':
-                try:
-                    # For Windows, construct the Suricata command
-                    suricata_args = f'-c "{str(config_file)}" --pcap="{self.interface}" -l "{str(self.config_manager.logs_dir)}" -v'
-                    
-                    # Run an initial check if suricata.exe exists
-                    if not os.path.exists(suricata_path):
-                        raise FileNotFoundError(f"Suricata executable not found at: {suricata_path}")
-                    
-                    # Create a runas command
-                    runas_cmd = [
-                        'runas',
-                        '/user:Administrator',
-                        f'"{suricata_path} -c "{str(config_file)}" --pcap={self.interface} -l "{str(self.config_manager.logs_dir)}" -v"'
-                    ]
-                    
-                    logger.info(f"Starting Suricata with elevated privileges")
-                    logger.info(f"Command: {' '.join(runas_cmd)}")
-                    
-                    # Create a batch file to run Suricata
-                    batch_path = self.config_manager.logs_dir / 'run_suricata.bat'
-                    with open(batch_path, 'w') as f:
-                        f.write('@echo off\n')
-                        f.write(f'cd /d "{os.path.dirname(suricata_path)}"\n')
-                        f.write(f'echo Starting Suricata in monitoring mode...\n')
-                        f.write(f'echo Press Ctrl+C to stop monitoring\n')
-                        f.write(f'"{suricata_path}" -c "{str(config_file)}" --pcap={self.interface} -l "{str(self.config_manager.logs_dir)}" -v\n')
-                        # Add an infinite loop to keep the window open
-                        f.write('if %ERRORLEVEL% NEQ 0 (\n')
-                        f.write('    echo Suricata exited with error code %ERRORLEVEL%\n')
-                        f.write('    pause\n')
-                        f.write(') else (\n')
-                        f.write('    echo Suricata stopped. Press any key to close window...\n')
-                        f.write('    pause > nul\n')
-                        f.write(')\n')
-                    
-                    # Make the batch file executable
-                    os.chmod(batch_path, 0o755)
-                    
-                    # Verify Suricata directory exists and is accessible
-                    suricata_dir = os.path.dirname(suricata_path)
-                    if not os.path.exists(suricata_dir):
-                        raise FileNotFoundError(f"Suricata directory not found: {suricata_dir}")
-                    
-                    # Verify all required DLLs are present
-                    required_dlls = ['winpcap.dll', 'wpcap.dll']
-                    missing_dlls = []
-                    for dll in required_dlls:
-                        dll_path = os.path.join(suricata_dir, dll)
-                        if not os.path.exists(dll_path):
-                            missing_dlls.append(dll)
-                    
-                    if missing_dlls:
-                        logger.warning(f"Missing DLLs in Suricata directory: {', '.join(missing_dlls)}")
-                    
-                    # Start the process using the batch file
-                    logger.info("Attempting to start Suricata process...")
-                    cmd = ['cmd', '/c', 'start', '/wait', str(batch_path)]
-                    self.suricata_process = subprocess.Popen(
-                        cmd,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        creationflags=subprocess.CREATE_NEW_CONSOLE
-                    )
-                    logger.info(f"Process created with PID: {self.suricata_process.pid}")
-                    
-                    # Immediately check process state
-                    returncode = self.suricata_process.poll()
-                    logger.info(f"Initial process state check - returncode: {returncode}")
-                    
-                    # Wait briefly to check if process started
-                    time.sleep(2)
-                    if self.suricata_process.poll() is not None:
-                        exit_code = self.suricata_process.poll()
-                        stdout, stderr = self.suricata_process.communicate()
-                        logger.error(f"Suricata failed to start. Exit code: {exit_code}")
-                        logger.error(f"stdout: {stdout.decode() if stdout else 'No output'}")
-                        logger.error(f"stderr: {stderr.decode() if stderr else 'No errors'}")
-                        raise RuntimeError("Suricata process failed to start")
-                        
-                    logger.info("Suricata process started successfully")
-                    
-                except Exception as e:
-                    logger.error(f"Failed to start Suricata: {str(e)}")
-                    raise
-                    
-                    # Wait a short time to check if the process started successfully
-                    time.sleep(2)
-                    if self.suricata_process.poll() is not None:
-                        exit_code = self.suricata_process.poll()
-                        stdout, stderr = self.suricata_process.communicate()
-                        raise RuntimeError(f"Suricata failed to start. Exit code: {exit_code}. "
-                                        f"stdout: {stdout.decode() if stdout else ''}, "
-                                        f"stderr: {stderr.decode() if stderr else ''}")
-                except Exception as e:
-                    logger.error(f"Failed to start Suricata: {str(e)}")
-                    raise
-            else:
-                cmd = [
-                    suricata_path,
-                    '-c', str(config_file),
-                    '-i', self.interface,
-                    '-l', str(self.config_manager.logs_dir),
-                    '-v'  # Verbose output
-                ]
+                # Construct the command without extra quotes
+                cmd = (f'cmd /c start "Suricata IDS Monitor" /D "{suricata_path.parent}" '
+                      f'"{suricata_path}" -c "{config_file}" '
+                      f'--pcap-buffer-size=262144 --runmode=workers '
+                      f'--pcap={self.interface} -l "{self.config_manager.logs_dir}" -v')
+
+                logger.info(f"Starting Suricata with command: {cmd}")
                 
-                logger.info(f"Starting Suricata with command: {' '.join(cmd)}")
                 self.suricata_process = subprocess.Popen(
                     cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
+                    shell=True,
+                    creationflags=subprocess.CREATE_NEW_CONSOLE
                 )
 
-            logger.info(f"Starting Suricata with command: {' '.join(cmd)}")
-            
-            # Start Suricata process
-            if platform.system() == 'Windows':
-                try:
-                    # Create a command string that we can log
-                    cmd_str = ' '.join(cmd)
-                    logger.info(f"Attempting to start Suricata with command: {cmd_str}")
-                    
-                    # Start in a new terminal window on Windows
-                    logger.info("Attempting to start Suricata process...")
-                    self.suricata_process = subprocess.Popen(
-                        cmd,
-                        creationflags=subprocess.CREATE_NEW_CONSOLE,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE
-                    )
-                    
-                    # Wait a moment to check if the process started successfully
-                    time.sleep(2)
-                    if self.suricata_process.poll() is not None:
-                        # Process terminated quickly, try to get error output
-                        stdout, stderr = self.suricata_process.communicate()
-                        logger.error(f"Suricata process failed to start or terminated immediately")
-                        if stdout:
-                            logger.error(f"Suricata output: {stdout.decode()}")
-                        if stderr:
-                            logger.error(f"Suricata error: {stderr.decode()}")
-                        return False
-                    
-                    logger.info(f"Suricata process started successfully with PID: {self.suricata_process.pid}")
-                        
-                except Exception as e:
-                    logger.error(f"Failed to start Suricata process: {str(e)}")
+                # Wait briefly to check if process started
+                time.sleep(2)
+                if self.suricata_process.poll() is not None:
+                    logger.error("Suricata process failed to start or terminated immediately")
                     return False
-            else:
-                # Default behavior for other OS
-                self.suricata_process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    bufsize=1,
-                    universal_newlines=True
-                )
-            
-            # Start log monitoring
-            if alert_callback:
-                self.start_log_monitoring_with_watcher(alert_callback)
-            
-            logger.info(f"Suricata started successfully with PID: {self.suricata_process.pid}")
-            return True
-            
-        except FileNotFoundError:
-            logger.error("Suricata executable not found. Please install Suricata and add it to PATH.")
-            return False
+
+                logger.info(f"Suricata process started with PID: {self.suricata_process.pid}")
+                
+                # Start log monitoring if callback provided
+                if alert_callback:
+                    self.start_log_monitoring_with_watcher(alert_callback)
+                
+                return True
+
         except Exception as e:
             logger.error(f"Failed to start Suricata: {str(e)}")
             return False
