@@ -61,11 +61,13 @@ class SuricataConfigManager:
                 config = yaml.safe_load(f)
             return config
         except FileNotFoundError:
-            logger.warning(f"Config file not found: {config_file_path}, will generate new configuration")
-            return self.generate_base_config()
+            error_msg = f"Error: Suricata configuration file not found at {config_file_path}"
+            logger.error(error_msg)
+            raise FileNotFoundError(error_msg)
         except Exception as e:
-            logger.error(f"Error loading config: {e}")
-            return self.generate_base_config()
+            error_msg = f"Error loading Suricata configuration: {e}"
+            logger.error(error_msg)
+            raise
     
     def generate_base_config(self):
         """Generate base configuration for Suricata"""
@@ -445,8 +447,9 @@ class SuricataManager:
         
     def setup_configuration(self):
         """Set up all configuration files"""
-        self.config_manager.create_config_files()
-        self.config_file = self.config_manager.generate_suricata_yaml(self.interface)
+        self.config_file = self.base_dir / 'suricata' / 'suricata.yaml'
+        if not self.config_file.exists():
+            raise FileNotFoundError(f"Suricata configuration file not found at {self.config_file}")
         self.eve_json_path = self.config_manager.logs_dir / 'eve.json'
         
     def start_suricata(self, alert_callback=None):
@@ -461,12 +464,10 @@ class SuricataManager:
                 logger.error("Suricata is not available. Please install Suricata first.")
                 return False
 
-            # The config file is generated in the `suricata` directory, not `configs`
-            config_file = self.config_manager.suricata_dir / 'suricata.yaml'
-            
-            # Create config if it doesn't exist
+            # Use the existing config file from the suricata directory
+            config_file = self.base_dir / 'suricata' / 'suricata.yaml'
             if not config_file.exists():
-                self.config_manager.generate_suricata_yaml(self.interface)
+                raise FileNotFoundError(f"Suricata configuration file not found at {config_file}")
 
             # Suricata command with full path
             suricata_path = r'C:\Program Files\Suricata\suricata.exe'
