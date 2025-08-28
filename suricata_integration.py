@@ -388,13 +388,14 @@ class SuricataManager:
                 logger.error("Suricata is not available. Please install Suricata first.")
                 return False
 
-            config_file = self.config_manager.config_dir / 'suricata.yaml'
+            # The config file is generated in the `suricata` directory, not `configs`
+            config_file = self.config_manager.suricata_dir / 'suricata.yaml'
             
             # Create config if it doesn't exist
             if not config_file.exists():
-                self.config_manager.create_suricata_config(self.interface)
+                self.config_manager.generate_suricata_yaml(self.interface)
 
-            # Suricata command for Windows
+            # Suricata command
             cmd = [
                 'suricata',
                 '-c', str(config_file),
@@ -406,14 +407,22 @@ class SuricataManager:
             logger.info(f"Starting Suricata with command: {' '.join(cmd)}")
             
             # Start Suricata process
-            self.suricata_process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                universal_newlines=True
-            )
+            if platform.system() == 'Windows':
+                # Start in a new terminal window on Windows
+                self.suricata_process = subprocess.Popen(
+                    ['cmd', '/c', 'start', f'"{Path(sys.executable).name.upper()} - Suricata IDS"', ' '.join(cmd)],
+                    creationflags=subprocess.CREATE_NEW_CONSOLE
+                )
+            else:
+                # Default behavior for other OS
+                self.suricata_process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
+                )
             
             # Start log monitoring
             if alert_callback:

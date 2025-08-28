@@ -2,10 +2,10 @@ af-packet:
 - cluster-id: 99
   cluster-type: cluster_flow
   defrag: true
-  interface: Ethernet
-classification-file: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs\classification.config
-default-log-dir: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
-default-rule-path: C:\Users\panna\Documents\GitHub\Secbot\suricata\rules
+  interface: Wi-Fi
+classification-file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\classification.config
+default-log-dir: C:\Users\panna\Documents\Github\Secbot\suricata\logs
+default-rule-path: C:\Users\panna\Documents\Github\Secbot\suricata\rules
 detect-engine:
 - profile: medium
 - custom-values:
@@ -18,7 +18,7 @@ logging:
       enabled: true
   - file:
       enabled: true
-      filename: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\suricata.log
+      filename: C:\Users\panna\Documents\Github\Secbot\suricata\logs\suricata.log
       level: info
 outputs:
 - eve-log:
@@ -45,7 +45,7 @@ outputs:
     append: true
     enabled: true
     filename: fast.log
-reference-config-file: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs\reference.config
+reference-config-file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\reference.config
 rule-files:
 - custom-security.rules
 - emerging-all.rules
@@ -56,7 +56,7 @@ rule-files:
 stats:
   enabled: true
   interval: 8
-threshold-file: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs\threshold.config
+threshold-file: C:\Users\panna\Documents\Github\Secbot\suricata\configs\threshold.config
 vars:
   address-groups:
     AIM_SERVERS: $EXTERNAL_NET

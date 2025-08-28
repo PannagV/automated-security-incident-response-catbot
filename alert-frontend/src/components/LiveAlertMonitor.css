@@ -4,31 +4,34 @@
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    height: 100vh;
-    padding: 20px;
-    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    padding: 2rem; /* Use relative units */
+    background: #1a1d24; /* Darker, less saturated background */
+    font-family: 'Fira Code', 'Source Code Pro', 'Monaco', monospace; /* Better coding fonts */
     box-sizing: border-box;
 }
 
 /* Terminal Container */
 .terminal-container {
-    background: #1e1e1e;
-    border-radius: 12px;
+    background: #1e2229; /* Slightly lighter than wrapper */
+    border-radius: 8px; /* Softer corners */
     overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
-    height: 80vh;
-    max-height: 700px;
-    min-height: 500px;
-    width: 95%;
-    max-width: 1200px;
-    min-width: 800px;
-    border: 1px solid #404040;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    border: 1px solid #333a45;
+    font-family: inherit; /* Inherit from wrapper */
+    height: 85vh;
+    max-height: 800px;
+    min-height: 400px;
+    width: 100%;
+    max-width: 1400px;
+    min-width: 600px;
+    display: flex;
+    flex-direction: column;
 }
 
 .terminal-header {
-    background: #2d2d2d;
-    border-bottom: 1px solid #404040;
+    background: #282c34; /* Consistent header color */
+    border-bottom: 1px solid #333a45;
+    flex-shrink: 0;
 }
 
 .terminal-title {
@@ -69,11 +72,12 @@
 }
 
 .terminal-title-text {
-    color: #ffffff;
+    color: #abb2bf;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 1rem;
     flex: 1;
     text-align: center;
+    letter-spacing: 1px;
 }
 
 .terminal-status {
@@ -82,22 +86,41 @@
 }
 
 .connection-indicator {
-    font-size: 12px;
+    font-size: 0.8rem;
     font-weight: bold;
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    background: rgba(0, 0, 0, 0.3);
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+}
+
+.connection-indicator::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: currentColor;
+    animation: pulse 2s infinite;
 }
 
 .connection-indicator.connected {
-    color: #28ca42;
+    color: #98c379; /* Softer green */
 }
 
 .connection-indicator.disconnected {
-    color: #ff5f57;
+    color: #e06c75; /* Softer red */
+    animation: none;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(152, 195, 121, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(152, 195, 121, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(152, 195, 121, 0); }
 }
 
 .terminal-controls-bar {
@@ -201,29 +224,29 @@
 }
 
 .terminal-line.system {
-    color: #888; /* Lighter grey for system messages */
+    color: #61afef; /* Blue for system messages */
 }
 
 .terminal-line.warning {
-    color: #f0ad4e; /* A nice orange/yellow for warnings */
+    color: #e5c07b; /* Softer yellow for warnings */
     font-weight: bold;
 }
 
 .terminal-line.critical {
-    color: #ff4136; /* Bright red */
+    color: #e06c75; /* Softer red */
     font-weight: bold;
 }
 
 .terminal-line.high {
-    color: #ff8c00;
+    color: #d19a66; /* Orange */
 }
 
 .terminal-line.medium {
-    color: #ffd700;
+    color: #e5c07b; /* Yellow */
 }
 
 .terminal-line.low {
-    color: #00ff00;
+    color: #abb2bf; /* Grey */
 }
 
 .terminal-empty {
@@ -268,25 +291,24 @@
 }
 
 /* Updated Responsive Design */
-@media (max-width: 1024px) {
-    .terminal-container {
-        width: 100%;
-        min-width: 600px;
-        height: 75vh;
+@media (max-width: 1200px) {
+    .terminal-wrapper {
+        padding: 1rem;
     }
 }
 
 @media (max-width: 768px) {
     .terminal-wrapper {
-        padding: 10px;
+        padding: 0;
         min-height: 100vh;
         height: 100vh;
     }
     
     .terminal-container {
-        min-width: 320px;
-        height: 70vh;
+        border-radius: 0;
+        height: 100%;
         max-height: none;
+        min-width: 100%;
     }
     
     .terminal-controls-bar {
