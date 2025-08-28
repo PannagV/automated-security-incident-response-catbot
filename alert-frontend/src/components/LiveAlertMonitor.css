@@ -201,12 +201,16 @@
 }
 
 .terminal-line.system {
-    color: #00bfff;
-    font-weight: normal;
+    color: #888; /* Lighter grey for system messages */
+}
+
+.terminal-line.warning {
+    color: #f0ad4e; /* A nice orange/yellow for warnings */
+    font-weight: bold;
 }
 
 .terminal-line.critical {
-    color: #ff4444;
+    color: #ff4136; /* Bright red */
     font-weight: bold;
 }
 

@@ -64,7 +64,7 @@ const SuricataLogMonitor = () => {
             const response = await fetch(`${API_BASE_URL}/stop`, { method: 'POST' });
             const data = await response.json();
             if (data.status === 'success' || data.status === 'not_running') {
-                addSystemMessage('Suricata IDS stopped successfully.');
+                addSystemMessage('Suricata IDS disconnected');
                 setSuricataStatus('stopped');
             } else {
                 throw new Error(data.message || 'Unknown error');
@@ -101,6 +101,12 @@ const SuricataLogMonitor = () => {
         });
 
         socket.on('suricata_alert', (alert) => {
+            // Check for scanning activity
+            const signature = alert.signature || '';
+            if (signature.toLowerCase().includes('scan') || signature.toLowerCase().includes('nmap')) {
+                addSystemMessage('Suspicious traffic detected (possible port scanning).', 'warning');
+            }
+
             setAlerts(prev => {
                 const newAlerts = [alert, ...prev].slice(0, 1000); // Keep last 1000 alerts
                 updateStats(newAlerts);
@@ -125,71 +131,17 @@ const SuricataLogMonitor = () => {
     }, [alerts, autoScroll]);
 
     const addWelcomeMessages = () => {
-        const welcomeMessages = [
-            {
-                timestamp: new Date().toISOString(),
-                severity: 'System',
-                signature: '========================================',
-                source_ip: 'System',
-                dest_ip: '-',
-                source_port: '-',
-                dest_port: '-',
-                protocol: '-',
-                category: 'System',
-                rule_file: 'system.log'
-            },
-            {
-                timestamp: new Date().toISOString(),
-                severity: 'System',
-                signature: '    SURICATA LOG MONITOR v2.0',
-                source_ip: 'System',
-                dest_ip: '-',
-                source_port: '-',
-                dest_port: '-',
-                protocol: '-',
-                category: 'System',
-                rule_file: 'system.log'
-            },
-            {
-                timestamp: new Date().toISOString(),
-                severity: 'System',
-                signature: '    Real-time IDS Alert Monitoring',
-                source_ip: 'System',
-                dest_ip: '-',
-                source_port: '-',
-                dest_port: '-',
-                protocol: '-',
-                category: 'System',
-                rule_file: 'system.log'
-            },
-            {
-                timestamp: new Date().toISOString(),
-                severity: 'System',
-                signature: '========================================',
-                source_ip: 'System',
-                dest_ip: '-',
-                source_port: '-',
-                dest_port: '-',
-                protocol: '-',
-                category: 'System',
-                rule_file: 'system.log'
-            }
-        ];
-        setAlerts(welcomeMessages);
+        addSystemMessage('Welcome to the Suricata Live Alert Monitor.');
+        addSystemMessage('Type "start" or "stop" or use the buttons to control the IDS.');
+        addSystemMessage('System ready. Waiting for commands...');
     };
 
-    const addSystemMessage = (message) => {
+    const addSystemMessage = (message, type = 'system') => {
         const systemAlert = {
             timestamp: new Date().toISOString(),
-            severity: 'System',
             signature: message,
-            source_ip: 'System',
-            dest_ip: '-',
-            source_port: '-',
-            dest_port: '-',
-            protocol: '-',
-            category: 'System',
-            rule_file: 'system.log'
+            severity: type, // 'system' or 'warning'
+            isSystemMessage: true,
         };
         setAlerts(prev => [systemAlert, ...prev]);
     };
@@ -224,13 +176,15 @@ const SuricataLogMonitor = () => {
     };
 
     const getSeverityColor = (severity) => {
-        switch(severity) {
-            case 'Critical': return '#ff4444';
-            case 'High': return '#ff8c00';
-            case 'Medium': return '#ffd700';
-            case 'Low': return '#00ff00';
-            case 'System': return '#00bfff';
-            default: return '#ffffff';
+        if (!severity) return '';
+        const severityLower = severity.toLowerCase();
+        switch (severityLower) {
+            case 'critical': return 'critical';
+            case 'high': return 'high';
+            case 'medium': return 'medium';
+            case 'low': return 'low';
+            case 'warning': return 'warning';
+            default: return 'system';
         }
     };
 

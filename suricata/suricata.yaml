@@ -48,8 +48,10 @@ outputs:
 reference-config-file: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs\reference.config
 rule-files:
 - custom-security.rules
+- emerging-all.rules
 - malware-detection.rules
 - network-scan.rules
+- nmap.rules
 - web-attacks.rules
 stats:
   enabled: true

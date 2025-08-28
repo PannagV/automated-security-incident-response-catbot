@@ -67,11 +67,8 @@ body {
 
 /* Custom animated logo */
 .security-logo {
-  font-size: 3rem;
-  background: linear-gradient(45deg, #60a5fa, #3b82f6, #2563eb);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 2.5rem;
+  color: var(--primary-color);
   animation: pulse 2s infinite;
   display: inline-block;
 }
@@ -987,4 +984,14 @@ textarea.form-control:focus, input.form-control:focus {
     .alerts-list table {
         min-width: 600px;
     }
+}
+
+.app-container.dark-mode {
+  background-color: var(--dark-bg);
+  color: #e5e7eb;
+}
+
+/* Ensure app container can be full height */
+.app-container {
+  min-height: 100vh;
 }
