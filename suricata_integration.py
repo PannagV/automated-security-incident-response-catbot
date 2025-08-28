@@ -395,9 +395,10 @@ class SuricataManager:
             if not config_file.exists():
                 self.config_manager.generate_suricata_yaml(self.interface)
 
-            # Suricata command
+            # Suricata command with full path
+            suricata_path = r'C:\Program Files\Suricata\suricata.exe'
             cmd = [
-                'suricata',
+                suricata_path,
                 '-c', str(config_file),
                 '-i', self.interface,
                 '-l', str(self.config_manager.logs_dir),
@@ -441,7 +442,8 @@ class SuricataManager:
     def check_suricata_availability(self):
         """Check if Suricata is available in the system"""
         try:
-            result = subprocess.run(['suricata', '--version'], 
+            suricata_path = r'C:\Program Files\Suricata\suricata.exe'
+            result = subprocess.run([suricata_path, '--version'], 
                                 capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
                 logger.info(f"Suricata version: {result.stdout.strip()}")

@@ -2,30 +2,32 @@
 .terminal-wrapper {
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     min-height: 100vh;
-    padding: 2rem; /* Use relative units */
-    background: #1a1d24; /* Darker, less saturated background */
-    font-family: 'Fira Code', 'Source Code Pro', 'Monaco', monospace; /* Better coding fonts */
+    padding: 1.5rem;
+    background: #0d1117; /* GitHub Dark theme inspired */
+    font-family: 'JetBrains Mono', 'Fira Code', 'Source Code Pro', monospace;
     box-sizing: border-box;
 }
 
 /* Terminal Container */
 .terminal-container {
-    background: #1e2229; /* Slightly lighter than wrapper */
-    border-radius: 8px; /* Softer corners */
+    background: #161b22; /* GitHub Dark theme inspired */
+    border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-    border: 1px solid #333a45;
-    font-family: inherit; /* Inherit from wrapper */
-    height: 85vh;
-    max-height: 800px;
-    min-height: 400px;
-    width: 100%;
-    max-width: 1400px;
-    min-width: 600px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1),
+                0 12px 16px rgba(0, 0, 0, 0.1);
+    border: 1px solid #30363d;
+    font-family: inherit;
+    height: 90vh;
+    max-height: 900px;
+    min-height: 500px;
+    width: 95%;
+    max-width: 1600px;
+    min-width: 800px;
     display: flex;
     flex-direction: column;
+    margin-top: 1rem;
 }
 
 .terminal-header {
@@ -38,16 +40,66 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
-    background: linear-gradient(135deg, #2d2d2d 0%, #3d3d3d 100%);
+    padding: 12px 20px;
+    background: #21262d; /* GitHub Dark theme header */
+    border-bottom: 1px solid #30363d;
 }
 
 .terminal-controls {
     display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.terminal-status {
+    display: flex;
+    align-items: center;
     gap: 8px;
+    font-size: 0.9rem;
+    color: #8b949e;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+
+.status-running {
+    background-color: #238636;
+    box-shadow: 0 0 8px rgba(35, 134, 54, 0.4);
+}
+
+.status-stopped {
+    background-color: #f85149;
+    box-shadow: 0 0 8px rgba(248, 81, 73, 0.4);
+}
+
+.status-error {
+    background-color: #db6d28;
+    box-shadow: 0 0 8px rgba(219, 109, 40, 0.4);
 }
 
 .terminal-button {
+    background: #30363d;
+    color: #c9d1d9;
+    border: 1px solid #484f58;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.terminal-button:hover {
+    background: #3c444d;
+    border-color: #606771;
+}
+
+.terminal-button:active {
+    transform: translateY(1px);
+}
     width: 12px;
     height: 12px;
     border-radius: 50%;

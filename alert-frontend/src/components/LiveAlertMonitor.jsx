@@ -14,11 +14,26 @@ const SuricataLogMonitor = () => {
     });
     const [autoScroll, setAutoScroll] = useState(true);
     const [filter, setFilter] = useState('all');
+    const [loading, setLoading] = useState(false);
     const [suricataStatus, setSuricataStatus] = useState('unknown'); // unknown, running, stopped, error
+    const [lastUpdate, setLastUpdate] = useState(new Date());
     const terminalRef = useRef(null);
 
     // --- API Communication ---
     const API_BASE_URL = 'http://localhost:5000/api/suricata';
+    
+    const getStatusClass = (status) => {
+        switch (status) {
+            case 'running':
+                return 'status-running';
+            case 'stopped':
+                return 'status-stopped';
+            case 'error':
+                return 'status-error';
+            default:
+                return '';
+        }
+    };
 
     const getStatus = async () => {
         try {
