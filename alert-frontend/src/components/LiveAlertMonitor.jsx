@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import io from 'socket.io-client';
 import './LiveAlertMonitor.css';
+import SuspiciousAlert from './SuspiciousAlert';
 
 const SuricataLogMonitor = () => {
     const [alerts, setAlerts] = useState([]);
@@ -116,10 +117,14 @@ const SuricataLogMonitor = () => {
         });
 
         socket.on('suricata_alert', (alert) => {
+            // Check for suspicious patterns
+            if (alert.is_suspicious) {
+                addSystemMessage('⚠️ Suspicious traffic pattern detected', 'warning');
+            }
             // Check for scanning activity
             const signature = alert.signature || '';
             if (signature.toLowerCase().includes('scan') || signature.toLowerCase().includes('nmap')) {
-                addSystemMessage('Suspicious traffic detected (possible port scanning).', 'warning');
+                addSystemMessage('⚠️ Suspicious traffic detected (possible port scanning)', 'warning');
             }
 
             setAlerts(prev => {
@@ -127,6 +132,11 @@ const SuricataLogMonitor = () => {
                 updateStats(newAlerts);
                 return newAlerts;
             });
+        });
+
+        // Listen for suspicious traffic notifications
+        socket.on('suspicious_traffic', (data) => {
+            addSystemMessage(`⚠️ ${data.message}: ${data.details}`, 'warning');
         });
 
         // Periodically check status

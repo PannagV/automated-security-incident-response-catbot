@@ -69,7 +69,9 @@ class SuricataConfigManager:
     
     def get_default_config(self):
         """Return default configuration"""
-        return {
+        is_windows = platform.system().lower() == 'windows'
+        
+        config = {
             'vars': {
                 'address-groups': {
                     'HOME_NET': '[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]',
@@ -143,14 +145,15 @@ class SuricataConfigManager:
                     }
                 ]
             },
-            'af-packet': [
-                {
-                    'interface': 'eth0',
-                    'cluster-id': 99,
-                    'cluster-type': 'cluster_flow',
-                    'defrag': True
-                }
-            ],
+            # Windows-specific configuration
+            'pcap': {
+                'interface': interface,
+                'buffer-size': 1048576,
+                'checksum-checks': 'auto',
+                'bpf-filter': ''
+            } if platform.system().lower() == 'windows' else {
+                'interface': interface
+            },
             'detect-engine': [
                 {'profile': 'medium'},
                 {
@@ -304,9 +307,19 @@ threshold gen_id 1, sig_id 2100368, type threshold, track by_src, count 10, seco
         """Generate the main Suricata YAML configuration"""
         config = self.load_external_config()
         
-        # Update interface if specified
-        if interface != 'eth0':
-            config['af-packet'][0]['interface'] = interface
+        # Handle Windows-specific configuration
+        if platform.system().lower() == 'windows':
+            # Remove af-packet configuration if it exists
+            if 'af-packet' in config:
+                del config['af-packet']
+            
+            # Add pcap configuration for Windows
+            config['pcap'] = {
+                'interface': interface,
+                'buffer-size': 1048576,
+                'bpf-filter': '',
+                'checksum-checks': 'auto'
+            }
         
         # Ensure all paths are absolute
         config['default-log-dir'] = str(self.logs_dir.absolute())
@@ -397,13 +410,23 @@ class SuricataManager:
 
             # Suricata command with full path
             suricata_path = r'C:\Program Files\Suricata\suricata.exe'
-            cmd = [
-                suricata_path,
-                '-c', str(config_file),
-                '-i', self.interface,
-                '-l', str(self.config_manager.logs_dir),
-                '-v'  # Verbose output
-            ]
+            
+            if platform.system().lower() == 'windows':
+                cmd = [
+                    suricata_path,
+                    '--pcap=' + self.interface,  # Use pcap capture on Windows
+                    '-c', str(config_file),
+                    '-l', str(self.config_manager.logs_dir),
+                    '-v'  # Verbose output
+                ]
+            else:
+                cmd = [
+                    suricata_path,
+                    '-c', str(config_file),
+                    '-i', self.interface,
+                    '-l', str(self.config_manager.logs_dir),
+                    '-v'  # Verbose output
+                ]
 
             logger.info(f"Starting Suricata with command: {' '.join(cmd)}")
             

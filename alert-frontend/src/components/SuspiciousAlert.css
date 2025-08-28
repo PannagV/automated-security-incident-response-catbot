@@ -1,0 +1,38 @@
+.suspicious-alert {
+    background: rgba(219, 109, 40, 0.1);
+    border: 1px solid #db6d28;
+    border-left: 4px solid #db6d28;
+    color: #db6d28;
+    padding: 12px 16px;
+    margin: 8px 0;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: alertPulse 2s infinite;
+}
+
+.suspicious-alert-icon {
+    font-size: 20px;
+}
+
+.suspicious-alert-content {
+    flex: 1;
+}
+
+.suspicious-alert-timestamp {
+    color: #8b949e;
+    font-size: 0.85rem;
+}
+
+@keyframes alertPulse {
+    0% {
+        border-color: #db6d28;
+    }
+    50% {
+        border-color: #f0883a;
+    }
+    100% {
+        border-color: #db6d28;
+    }
+}

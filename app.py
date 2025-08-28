@@ -68,6 +68,13 @@ def suricata_alert_callback(alert_data):
             severity_map = {1: 'Critical', 2: 'High', 3: 'Medium', 4: 'Low'}
             severity = severity_map.get(alert.get('severity'), 'Unknown')
 
+            # Check for "Bad" traffic patterns
+            is_suspicious = False
+            message = alert.get('signature', '')
+            
+            if 'Bad' in message or 'bad' in message:
+                is_suspicious = True
+
             formatted_alert = {
                 'timestamp': alert_data.get('timestamp'),
                 'severity': severity,
@@ -78,9 +85,18 @@ def suricata_alert_callback(alert_data):
                 'dest_ip': alert_data.get('dest_ip'),
                 'dest_port': alert_data.get('dest_port'),
                 'protocol': alert_data.get('proto'),
+                'is_suspicious': is_suspicious,
                 'raw_alert': alert_data 
             }
+            
+            # Emit both the alert and a special notification for suspicious traffic
             socketio.emit('suricata_alert', formatted_alert)
+            if is_suspicious:
+                socketio.emit('suspicious_traffic', {
+                    'message': 'Suspicious Traffic Detected',
+                    'details': f'Detected suspicious pattern: {message}',
+                    'timestamp': alert_data.get('timestamp')
+                })
     except Exception as e:
         logger.error(f"Error in Suricata callback: {e}")
 
