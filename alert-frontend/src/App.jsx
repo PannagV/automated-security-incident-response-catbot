@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap-icons/font/bootstrap-icons.css'
@@ -15,7 +14,9 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ReportGenerator from './components/Reports/ReportGenerator';
 import SimpleReportGenerator from './components/Reports/SimpleReportGenerator';
+import SIEMDashboard from './components/SIEMDashboard';
 import ThreatIntelligenceDashboard from './components/ThreatIntelligenceDashboard';
+import LiveAlertMonitor from './components/LiveAlertMonitor';
 
 function App() {
   // Define all state variables

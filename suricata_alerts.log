@@ -95,3 +95,60 @@
 2025-08-28 19:59:54,833 - __main__ - INFO - additional_data column already exists
 2025-08-28 19:59:55,010 - __main__ - INFO - additional_data column already exists
 2025-08-28 19:59:55,016 - __main__ - INFO - additional_data column already exists
+2025-08-28 20:02:15,976 - __main__ - INFO - Checking API configurations...
+2025-08-28 20:02:15,976 - __main__ - INFO - All configurations present
+2025-08-28 20:02:15,976 - __main__ - INFO - Gemini API configured successfully
+2025-08-28 20:02:16,939 - __main__ - INFO - Successfully connected to Jira. Available projects: SMS, MP
+2025-08-28 20:02:17,080 - __main__ - INFO - Available issue types: Subtask, Subtask, Story, Task, Task, Epic, Epic, Epic
+2025-08-28 20:02:17,356 - __main__ - INFO - Available priorities: Highest, High, Medium, Low, Lowest
+2025-08-28 20:02:17,356 - __main__ - INFO - Loading model from alert_classifier.pkl
+2025-08-28 20:02:17,371 - __main__ - INFO - Model type: <class 'sklearn.ensemble._forest.RandomForestClassifier'>
+2025-08-28 20:02:17,372 - __main__ - INFO - Loading vectorizer from tfidf_vectorizer.pkl
+2025-08-28 20:02:17,380 - __main__ - INFO - Vectorizer type: <class 'sklearn.feature_extraction.text.TfidfVectorizer'>
+2025-08-28 20:02:17,380 - __main__ - INFO - Model and vectorizer loaded successfully
+2025-08-28 20:02:17,480 - __main__ - INFO - Database tables created successfully
+2025-08-28 20:02:17,480 - network_utils - INFO - Trying PowerShell Get-NetAdapter method...
+2025-08-28 20:02:18,724 - network_utils - INFO - Detected active interface via PowerShell: Ethernet
+2025-08-28 20:02:18,724 - network_utils - INFO - Successfully detected interface 'Ethernet' using PowerShell Get-NetAdapter
+2025-08-28 20:02:18,725 - __main__ - INFO - Primary network interface detected: Ethernet
+2025-08-28 20:02:18,725 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata
+2025-08-28 20:02:18,725 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs
+2025-08-28 20:02:18,726 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\rules
+2025-08-28 20:02:18,726 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-28 20:02:18,727 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs\classification.config
+2025-08-28 20:02:18,727 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs\reference.config
+2025-08-28 20:02:18,728 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs\threshold.config
+2025-08-28 20:02:18,728 - suricata_integration - WARNING - Config file not found: C:\Users\panna\Documents\GitHub\Secbot\config\suricata_config.yaml
+2025-08-28 20:02:18,732 - suricata_integration - INFO - Generated Suricata config: C:\Users\panna\Documents\GitHub\Secbot\suricata\suricata.yaml
+2025-08-28 20:02:18,732 - __main__ - INFO - SuricataManager initialized successfully.
+2025-08-28 20:02:18,733 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-28 20:02:21,315 - __main__ - INFO - Checking API configurations...
+2025-08-28 20:02:21,316 - __main__ - INFO - All configurations present
+2025-08-28 20:02:21,316 - __main__ - INFO - Gemini API configured successfully
+2025-08-28 20:02:22,233 - __main__ - INFO - Successfully connected to Jira. Available projects: SMS, MP
+2025-08-28 20:02:22,535 - __main__ - INFO - Available issue types: Subtask, Subtask, Story, Task, Task, Epic, Epic, Epic
+2025-08-28 20:02:22,723 - __main__ - INFO - Available priorities: Highest, High, Medium, Low, Lowest
+2025-08-28 20:02:22,723 - __main__ - INFO - Loading model from alert_classifier.pkl
+2025-08-28 20:02:22,734 - __main__ - INFO - Model type: <class 'sklearn.ensemble._forest.RandomForestClassifier'>
+2025-08-28 20:02:22,734 - __main__ - INFO - Loading vectorizer from tfidf_vectorizer.pkl
+2025-08-28 20:02:22,742 - __main__ - INFO - Vectorizer type: <class 'sklearn.feature_extraction.text.TfidfVectorizer'>
+2025-08-28 20:02:22,743 - __main__ - INFO - Model and vectorizer loaded successfully
+2025-08-28 20:02:22,846 - __main__ - INFO - Database tables created successfully
+2025-08-28 20:02:22,847 - network_utils - INFO - Trying PowerShell Get-NetAdapter method...
+2025-08-28 20:02:23,849 - network_utils - INFO - Detected active interface via PowerShell: Ethernet
+2025-08-28 20:02:23,849 - network_utils - INFO - Successfully detected interface 'Ethernet' using PowerShell Get-NetAdapter
+2025-08-28 20:02:23,850 - __main__ - INFO - Primary network interface detected: Ethernet
+2025-08-28 20:02:23,850 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata
+2025-08-28 20:02:23,851 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs
+2025-08-28 20:02:23,851 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\rules
+2025-08-28 20:02:23,852 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-28 20:02:23,853 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs\classification.config
+2025-08-28 20:02:23,853 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs\reference.config
+2025-08-28 20:02:23,854 - suricata_integration - INFO - Created config file: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs\threshold.config
+2025-08-28 20:02:23,854 - suricata_integration - WARNING - Config file not found: C:\Users\panna\Documents\GitHub\Secbot\config\suricata_config.yaml
+2025-08-28 20:02:23,858 - suricata_integration - INFO - Generated Suricata config: C:\Users\panna\Documents\GitHub\Secbot\suricata\suricata.yaml
+2025-08-28 20:02:23,858 - __main__ - INFO - SuricataManager initialized successfully.
+2025-08-28 20:02:23,859 - werkzeug - WARNING -  * Debugger is active!
+2025-08-28 20:02:23,863 - werkzeug - INFO -  * Debugger PIN: 497-607-750
+2025-08-28 20:02:26,786 - __main__ - INFO - additional_data column already exists
+2025-08-28 20:02:26,799 - __main__ - INFO - additional_data column already exists
