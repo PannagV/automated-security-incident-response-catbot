@@ -20,7 +20,7 @@ import time
 import random
 import requests
 from flask_socketio import SocketIO, emit
-from suricata_integration import SuricataWatcher
+from suricata_integration import SuricataManager
 from network_utils import detect_primary_network_interface
 
 # Load environment variables from .env file with force reload
@@ -83,9 +83,12 @@ def _start_suricata():
     if _suricata_watcher is None:
         _suricata_watcher = start_suricata_tail(on_alert=persist_alert)
 
-# --- Suricata Integration ---
+
+suricata_manager = SuricataManager(on_alert=persist_alert)
+
+"""# --- Suricata Integration ---
 suricata_manager = None
-suricata_thread = None
+suricata_thread = None"""
 
 def initialize_suricata():
     """Initialize the Suricata manager."""
@@ -94,7 +97,7 @@ def initialize_suricata():
         primary_interface = detect_primary_network_interface()
         if primary_interface:
             logger.info(f"Primary network interface detected: {primary_interface}")
-            suricata_manager = SuricataWatcher(interface=primary_interface)
+            suricata_manager = SuricataManager(interface=primary_interface)
             logger.info("SuricataManager initialized successfully.")
         else:
             logger.error("Could not detect a primary network interface for Suricata.")
@@ -1613,7 +1616,7 @@ def start_suricata():
 
     try:
         # Run Suricata in a background thread to not block the API call
-        suricata_thread = threading.Thread(target=suricata_manager.start_suricata, args=(suricata_alert_callback,))
+        suricata_thread = threading.Thread(target=suricata_manager.start, args=(suricata_alert_callback,))
         suricata_thread.daemon = True
         suricata_thread.start()
         
