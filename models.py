@@ -1,6 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, Integer, DateTime, JSON, Text, func
+from sqlalchemy import String, Integer, DateTime, JSON, Text, func, Boolean
 
 class Base(DeclarativeBase):
     pass
@@ -29,9 +29,9 @@ class SecurityEvent(db.Model):
     recommendations: Mapped[dict] = mapped_column(JSON, nullable=True)
     additional_data: Mapped[dict] = mapped_column(JSON, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    # Add missing fields for compatibility
+    # Add missing fields for compatibility with search functions
     jira_ticket_id: Mapped[str] = mapped_column(String(128), nullable=True)
-    slack_notification_sent: Mapped[bool] = mapped_column(nullable=True, default=False)
+    slack_notification_sent: Mapped[bool] = mapped_column(Boolean, nullable=True, default=False)
     timestamp: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:

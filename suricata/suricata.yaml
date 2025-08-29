@@ -86,23 +86,18 @@ outputs:
       append: yes
       #filetype: regular # 'regular', 'unix_stream' or 'unix_dgram'
 
-  # Extensible Event Format (nicknamed EVE) event log in JSON format
+  # Extensible Event Format (nicknamed EVE) event log in JSON format  
   - eve-log:
-      enabled: yes
-      filetype: regular #regular|syslog|unix_dgram|unix_stream|redis
-      filename: eve.json
-  
-  - eve-log:
-      enabled: yes
-      filename: eve.json
-      filetype: regular
-      types: [alert, dns, http, tls, flow]
-  - eve-log:
-      enabled: yes
-      filename: eve-alerts.json
-      filetype: regular
-      types: [alert]
-      
+        enabled: yes
+        filename: eve.json
+        filetype: regular
+        types:
+          - alert
+          - dns
+          - http
+          - tls
+          - flow
+
       # Enable for multi-threaded eve.json output; output files are amended with
       # an identifier, e.g., eve.9.json
       #threaded: false

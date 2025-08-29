@@ -1621,29 +1621,6 @@ def get_siem_summary():
 
 # --- Suricata API Endpoints ---
 
-@app.route('/api/suricata/start', methods=['POST'])
-def start_suricata():
-    global suricata_manager, suricata_thread
-    if not suricata_manager:
-        return jsonify({'status': 'error', 'message': 'Suricata manager not initialized.'}), 500
-    
-    if suricata_manager.get_status().get('suricata_running'):
-        return jsonify({'status': 'already_running', 'message': 'Suricata is already running.'})
-
-    try:
-        # Run Suricata in a background thread to not block the API call
-        suricata_thread = threading.Thread(target=suricata_manager.start, args=(suricata_alert_callback,))
-        suricata_thread.daemon = True
-        suricata_thread.start()
-        
-        # Give it a moment to start up before returning status
-        time.sleep(5) 
-        
-        return jsonify({'status': 'success', 'message': 'Suricata is starting...'})
-    except Exception as e:
-        logger.error(f"Failed to start Suricata thread: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
 def persist_alert(evt: dict) -> None:
     """Store Suricata alert in database."""
     try:
@@ -1658,7 +1635,6 @@ def persist_alert(evt: dict) -> None:
         source = f"{src_ip}:{src_port}" if src_ip else None
         destination = f"{dst_ip}:{dst_port}" if dst_ip else None
 
-        # Try SecurityEvent first, fallback to Alert
         try:
             event = SecurityEvent(
                 message=message,
@@ -1684,10 +1660,9 @@ def persist_alert(evt: dict) -> None:
     except Exception as e:
         logger.error(f"Failed to persist Suricata alert: {e}")
 
-# Initialize Suricata manager globally
+# Initialize Suricata manager globally (add after app creation)
 suricata_manager = None
 
-# Add this after app creation but before route definitions
 @app.before_first_request
 def initialize_suricata():
     global suricata_manager
@@ -1700,9 +1675,10 @@ def initialize_suricata():
     except Exception as e:
         logger.error(f"Error initializing Suricata manager: {e}")
 
-# Add these Suricata API endpoints
+# Replace ALL Suricata routes with these UNIQUE function names:
+
 @app.route('/api/suricata/status', methods=['GET'])
-def suricata_status():
+def get_suricata_status():  # ← Unique name
     """Get Suricata status."""
     try:
         if suricata_manager:
@@ -1713,7 +1689,7 @@ def suricata_status():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/suricata/start', methods=['POST'])
-def start_suricata():
+def start_suricata_service():  # ← Unique name (changed from start_suricata)
     """Start Suricata monitoring."""
     try:
         if suricata_manager:
@@ -1727,7 +1703,7 @@ def start_suricata():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/suricata/stop', methods=['POST'])
-def stop_suricata():
+def stop_suricata_service():  # ← Unique name (changed from stop_suricata)
     """Stop Suricata monitoring."""
     try:
         if suricata_manager:
@@ -1741,7 +1717,24 @@ def stop_suricata():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/suricata/logs', methods=['GET'])
-def get_suricata_logs():
+def get_suricata_log_contents():  # ← Unique name
+    """Get Suricata log file contents."""
+    try:
+        if suricata_manager and suricata_manager.eve_json_path.exists():
+            with open(suricata_manager.eve_json_path, 'r') as f:
+                lines = f.readlines()[-100:]  # Get last 100 lines
+                return jsonify({
+                    "success": True,
+                    "logs": lines,
+                    "file_path": str(suricata_manager.eve_json_path)
+                })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Log file not found or manager not initialized"
+            }), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     """Get Suricata log file contents."""
     try:
         if suricata_manager and suricata_manager.eve_json_path.exists():
