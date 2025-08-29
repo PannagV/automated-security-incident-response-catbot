@@ -22,6 +22,7 @@ import requests
 from flask_socketio import SocketIO, emit
 from suricata_integration import SuricataManager
 from network_utils import detect_primary_network_interface
+from network_utils import get_interface_for_suricata
 
 # Load environment variables from .env file with force reload
 load_dotenv(override=True)
@@ -29,19 +30,6 @@ load_dotenv(override=True)
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Add debug logging for Slack configuration
-print("==== SLACK CONFIGURATION DEBUG ====")
-print(f"SLACK_BOT_TOKEN: {os.getenv('SLACK_BOT_TOKEN')[:10]}... (Length: {len(os.getenv('SLACK_BOT_TOKEN', ''))})")
-print(f"SLACK_CHANNEL_ID: {os.getenv('SLACK_CHANNEL_ID')}")
-print("====================================")
-
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # More explicit CORS configuration
-socketio = SocketIO(app, cors_allowed_origins="*")
-# app.py (excerpt)
-from suricata_integration import start_suricata_tail
-from datetime import datetime
 
 def persist_alert(evt: dict) -> None:
     """Store Suricata alert in database."""
@@ -83,8 +71,27 @@ def persist_alert(evt: dict) -> None:
     except Exception as e:
         logger.error(f"Failed to persist Suricata alert: {e}")
 
-# Initialize Suricata manager globally
-suricata_manager = None
+
+# Log the detected interface
+detected_interface = get_interface_for_suricata()
+logger.info(f"Starting Suricata with detected interface: {detected_interface}")
+
+# Start Suricata with detected interface
+suricata_manager = start_suricata_tail(on_alert=persist_alert, interface=detected_interface)
+
+# Add debug logging for Slack configuration
+print("==== SLACK CONFIGURATION DEBUG ====")
+print(f"SLACK_BOT_TOKEN: {os.getenv('SLACK_BOT_TOKEN')[:10]}... (Length: {len(os.getenv('SLACK_BOT_TOKEN', ''))})")
+print(f"SLACK_CHANNEL_ID: {os.getenv('SLACK_CHANNEL_ID')}")
+print("====================================")
+
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})  # More explicit CORS configuration
+socketio = SocketIO(app, cors_allowed_origins="*")
+# app.py (excerpt)
+from suricata_integration import start_suricata_tail
+from datetime import datetime
+
 
 # Start tailer in background when app starts
 _suricata_watcher = None

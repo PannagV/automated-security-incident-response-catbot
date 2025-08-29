@@ -6,7 +6,7 @@ import platform
 import logging
 from pathlib import Path
 from typing import Callable, Optional, Tuple, Dict, Any, List
-
+from network_utils import detect_primary_network_interface
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import logging
@@ -284,6 +284,24 @@ class SuricataWatcher:
             self.observer = None
             self.handler = None
 
+    def start_with_detected_interface(self) -> bool:
+        """Start Suricata manager with automatically detected network interface."""
+        try:
+            # Run network detection before starting Suricata
+            detected_interface = detect_primary_network_interface()
+            logger.info(f"Detected network interface: {detected_interface}")
+            
+            # Update the interface for the watcher
+            if not self._running:
+                self.watcher = SuricataWatcher(on_alert=self.watcher.on_alert, interface=detected_interface)
+                self.eve_json_path = self.watcher.eve_json_path
+                return self.start()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to start with detected interface: {e}")
+            return False
+
+
     def get_status(self) -> Dict[str, Any]:
         """Get current status of the watcher."""
         eve_exists = False
@@ -362,6 +380,34 @@ class SuricataManager:
                 "using_windows_service": False,
                 "error": str(e)
             }
+def update_suricata_config_interface(config_path: Path, interface: str) -> bool:
+    """Update the Suricata configuration file with the detected interface."""
+    try:
+        if not config_path.exists():
+            logger.error(f"Suricata config file not found: {config_path}")
+            return False
+            
+        # Read the current config
+        with open(config_path, 'r') as f:
+            content = f.read()
+        
+        # Replace the interface in af-packet section
+        import re
+        pattern = r'(af-packet:\s*\n\s*-\s*interface:\s*)["\']?[^"\'\s]+["\']?'
+        replacement = f'\\1"{interface}"'
+        
+        updated_content = re.sub(pattern, replacement, content)
+        
+        # Write back the updated config
+        with open(config_path, 'w') as f:
+            f.write(updated_content)
+            
+        logger.info(f"Updated Suricata config with interface: {interface}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to update Suricata config: {e}")
+        return False
 
 def handle_suricata_alert(evt: dict) -> None:
     """Default alert handler that logs alerts."""
@@ -382,8 +428,17 @@ def start_suricata_tail(
     """Convenience function to create and start a SuricataManager."""
     cb: Callable[[dict], None] = on_alert if on_alert is not None else handle_suricata_alert
     mgr: SuricataManager = SuricataManager(on_alert=cb, interface=interface)
-    mgr.start()
+    
+    # Use detected interface if none provided
+    if interface is None:
+        success = mgr.start_with_detected_interface()
+    else:
+        success = mgr.start()
+    
+    if not success:
+        logger.error("Failed to start Suricata manager")
     return mgr
+
 
 if __name__ == "__main__":
     manager = start_suricata_tail()

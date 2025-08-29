@@ -184,6 +184,24 @@ class WindowsNetworkDetector:
             logger.warning(f"Connection test method failed: {e}")
         
         return None
+    
+def get_interface_for_suricata() -> str:
+    """Get the best interface name for Suricata configuration on Windows."""
+    try:
+        # First try to get the actual interface name
+        interface = detect_primary_network_interface()
+        
+        # Verify the interface is suitable for Suricata
+        if interface and interface not in ['Loopback Pseudo-Interface 1', 'Software Loopback Interface 1']:
+            logger.info(f"Selected interface for Suricata: {interface}")
+            return interface
+        else:
+            logger.warning(f"Interface '{interface}' not suitable, using fallback")
+            return 'Ethernet'  # Common Windows interface name
+            
+    except Exception as e:
+        logger.error(f"Error detecting interface: {e}")
+        return 'Ethernet'  # Safe fallback
 
 def detect_primary_network_interface() -> str:
     """

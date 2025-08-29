@@ -87,18 +87,6 @@ outputs:
 
       #filetype: regular # 'regular', 'unix_stream' or 'unix_dgram'
 
-  # Extensible Event Format (nicknamed EVE) event log in JSON format  
-  - eve-log:
-        enabled: yes
-        filename: eve.json
-        filetype: regular
-        types:
-          - alert
-          - dns
-          - http
-          - tls
-          - flow
-
       # Enable for multi-threaded eve.json output; output files are amended with
       # an identifier, e.g., eve.9.json
       #threaded: false
@@ -626,11 +614,12 @@ logging:
 
 # Linux high speed capture support
 af-packet:
-  - interface: "Wi-Fi"  # Use actual Windows interface name
+  - interface: "Wi-Fi" # Use actual Windows interface name
     threads: auto
     cluster-id: 99
     cluster-type: cluster_flow
     defrag: yes
+
 
 # Linux high speed af-xdp capture support
 af-xdp:
