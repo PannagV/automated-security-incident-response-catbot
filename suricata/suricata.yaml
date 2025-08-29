@@ -12,17 +12,11 @@ suricata-version: "7.0"
 ## Step 1: Inform Suricata about your network
 ##
 
+# Proper indentation (2 spaces consistently)
 vars:
-  # more specific is better for alert accuracy and performance
   address-groups:
     HOME_NET: "[192.168.0.0/16,10.0.0.0/8,172.16.0.0/12]"
-    #HOME_NET: "[192.168.0.0/16]"
-    #HOME_NET: "[10.0.0.0/8]"
-    #HOME_NET: "[172.16.0.0/12]"
-    #HOME_NET: "any"
-
     EXTERNAL_NET: "!$HOME_NET"
-    #EXTERNAL_NET: "any"
 
     HTTP_SERVERS: "$HOME_NET"
     SMTP_SERVERS: "$HOME_NET"
@@ -78,12 +72,19 @@ plugins:
 #   - /path/to/plugin.so
 
 # Configure the type of alert (and other) logging you would like.
+# Ensure all keys have colons
 outputs:
-  # a line based alerts log similar to Snort's fast.log
-  - fast:
+  - eve-log:
       enabled: yes
-      filename: fast.log
-      append: yes
+      filename: eve.json
+      filetype: regular
+      types:
+        - alert
+        - dns
+        - http
+        - tls
+        - flow
+
       #filetype: regular # 'regular', 'unix_stream' or 'unix_dgram'
 
   # Extensible Event Format (nicknamed EVE) event log in JSON format  
@@ -625,11 +626,12 @@ logging:
 
 # Linux high speed capture support
 af-packet:
-  - interface: "Wi-Fi"  # or "Ethernet" - use actual Windows interface name
+  - interface: "Wi-Fi"  # Use actual Windows interface name
     threads: auto
     cluster-id: 99
     cluster-type: cluster_flow
     defrag: yes
+
 # Linux high speed af-xdp capture support
 af-xdp:
   - interface: default
