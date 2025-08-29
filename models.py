@@ -2,7 +2,6 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import String, Integer, DateTime, JSON, Text, func
 
-# Base and DB initialization can also live in an extensions module
 class Base(DeclarativeBase):
     pass
 
@@ -20,7 +19,7 @@ class Alert(db.Model):
     additional_data: Mapped[dict] = mapped_column(JSON, nullable=True)
 
     def __repr__(self) -> str:
-        return f"<Alert {self.id} {self.message}>"
+        return f"<Alert {self.id}: {self.message}>"
 
 class SecurityEvent(db.Model):
     __tablename__ = "security_events"
@@ -30,6 +29,10 @@ class SecurityEvent(db.Model):
     recommendations: Mapped[dict] = mapped_column(JSON, nullable=True)
     additional_data: Mapped[dict] = mapped_column(JSON, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Add missing fields for compatibility
+    jira_ticket_id: Mapped[str] = mapped_column(String(128), nullable=True)
+    slack_notification_sent: Mapped[bool] = mapped_column(nullable=True, default=False)
+    timestamp: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:
-        return f"<SecurityEvent {self.id} {self.message}>"
+        return f"<SecurityEvent {self.id}: {self.message}>"

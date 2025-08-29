@@ -43,46 +43,62 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 from suricata_integration import start_suricata_tail
 from datetime import datetime
 
-def persist_alert(evt: dict):
+def persist_alert(evt: dict) -> None:
+    """Store Suricata alert in database."""
     try:
-        alert = {
-            "message": evt.get("alert", {}).get("signature", "Suricata alert"),
-            "severity": str(evt.get("alert", {}).get("severity", "3")),
-            "recommendations": {"immediate": ["Review Suricata alert"]},
-            "additional_data": evt,  # store full event for later analysis
-        }
-        # Create a SecurityEvent row if available, else Alert as fallback
+        alert_obj = evt.get("alert", {}) if isinstance(evt, dict) else {}
+        message = alert_obj.get("signature", "Suricata alert")
+        severity = str(alert_obj.get("severity", "3"))
+        src_ip = evt.get("src_ip")
+        src_port = evt.get("src_port")
+        dst_ip = evt.get("dest_ip")
+        dst_port = evt.get("dest_port")
+
+        source = f"{src_ip}:{src_port}" if src_ip else None
+        destination = f"{dst_ip}:{dst_port}" if dst_ip else None
+
+        # Try SecurityEvent first, fallback to Alert
         try:
-            from models import SecurityEvent
             event = SecurityEvent(
-                message=alert["message"],
-                severity=alert["severity"],
-                recommendations=alert["recommendations"],
-                additional_data=alert["additional_data"],
+                message=message,
+                severity=severity,
+                recommendations={"immediate": ["Review Suricata alert"]},
+                additional_data=evt,
             )
             db.session.add(event)
             db.session.commit()
         except Exception:
-            from models import Alert
-            a = Alert(
-                message=alert["message"],
-                severity=alert["severity"],
-                recommendations=alert["recommendations"],
-                additional_data=alert["additional_data"],
+            alert = Alert(
+                message=message,
+                severity=severity,
+                source=source,
+                destination=destination,
+                signature_id=alert_obj.get("signature_id"),
+                additional_data=evt,
             )
-            db.session.add(a)
+            db.session.add(alert)
             db.session.commit()
+
+        logger.info(f"Stored Suricata alert: {message}")
     except Exception as e:
-        app.logger.error(f"Failed to persist Suricata alert: {e}")
+        logger.error(f"Failed to persist Suricata alert: {e}")
+
+# Initialize Suricata manager globally
+suricata_manager = None
 
 # Start tailer in background when app starts
 _suricata_watcher = None
 @app.before_first_request
-def _start_suricata():
-    global _suricata_watcher
-    if _suricata_watcher is None:
-        _suricata_watcher = start_suricata_tail(on_alert=persist_alert)
-
+def initialize_suricata():
+    global suricata_manager
+    try:
+        suricata_manager = SuricataManager(on_alert=persist_alert)
+        if suricata_manager.start():
+            logger.info("Suricata manager started successfully")
+        else:
+            logger.error("Failed to start Suricata manager")
+    except Exception as e:
+        logger.error(f"Error initializing Suricata manager: {e}")
 
 suricata_manager = SuricataManager(on_alert=persist_alert)
 
@@ -1628,62 +1644,122 @@ def start_suricata():
         logger.error(f"Failed to start Suricata thread: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/suricata/stop', methods=['POST'])
-def stop_suricata():
-    global suricata_manager
-    if not suricata_manager or not suricata_manager.get_status().get('suricata_running'):
-        return jsonify({'status': 'not_running', 'message': 'Suricata is not running.'})
-    
+def persist_alert(evt: dict) -> None:
+    """Store Suricata alert in database."""
     try:
-        suricata_manager.stop_suricata()
-        return jsonify({'status': 'success', 'message': 'Suricata stopped successfully.'})
-    except Exception as e:
-        logger.error(f"Failed to stop Suricata: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        alert_obj = evt.get("alert", {}) if isinstance(evt, dict) else {}
+        message = alert_obj.get("signature", "Suricata alert")
+        severity = str(alert_obj.get("severity", "3"))
+        src_ip = evt.get("src_ip")
+        src_port = evt.get("src_port")
+        dst_ip = evt.get("dest_ip")
+        dst_port = evt.get("dest_port")
 
+        source = f"{src_ip}:{src_port}" if src_ip else None
+        destination = f"{dst_ip}:{dst_port}" if dst_ip else None
+
+        # Try SecurityEvent first, fallback to Alert
+        try:
+            event = SecurityEvent(
+                message=message,
+                severity=severity,
+                recommendations={"immediate": ["Review Suricata alert"]},
+                additional_data=evt,
+            )
+            db.session.add(event)
+            db.session.commit()
+        except Exception:
+            alert = Alert(
+                message=message,
+                severity=severity,
+                source=source,
+                destination=destination,
+                signature_id=alert_obj.get("signature_id"),
+                additional_data=evt,
+            )
+            db.session.add(alert)
+            db.session.commit()
+
+        logger.info(f"Stored Suricata alert: {message}")
+    except Exception as e:
+        logger.error(f"Failed to persist Suricata alert: {e}")
+
+# Initialize Suricata manager globally
+suricata_manager = None
+
+# Add this after app creation but before route definitions
+@app.before_first_request
+def initialize_suricata():
+    global suricata_manager
+    try:
+        suricata_manager = SuricataManager(on_alert=persist_alert)
+        if suricata_manager.start():
+            logger.info("Suricata manager started successfully")
+        else:
+            logger.error("Failed to start Suricata manager")
+    except Exception as e:
+        logger.error(f"Error initializing Suricata manager: {e}")
+
+# Add these Suricata API endpoints
 @app.route('/api/suricata/status', methods=['GET'])
 def suricata_status():
-    if not suricata_manager:
-        return jsonify({'status': 'error', 'message': 'Suricata manager not initialized.'}), 500
-    
-    return jsonify(suricata_manager.get_status())
+    """Get Suricata status."""
+    try:
+        if suricata_manager:
+            return jsonify(suricata_manager.get_status())
+        else:
+            return jsonify({"error": "Suricata manager not initialized"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/suricata/start', methods=['POST'])
+def start_suricata():
+    """Start Suricata monitoring."""
+    try:
+        if suricata_manager:
+            if suricata_manager.start():
+                return jsonify({"success": True, "message": "Suricata started"})
+            else:
+                return jsonify({"success": False, "error": "Failed to start"}), 500
+        else:
+            return jsonify({"error": "Suricata manager not initialized"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/suricata/stop', methods=['POST'])
+def stop_suricata():
+    """Stop Suricata monitoring."""
+    try:
+        if suricata_manager:
+            if suricata_manager.stop():
+                return jsonify({"success": True, "message": "Suricata stopped"})
+            else:
+                return jsonify({"success": False, "error": "Failed to stop"}), 500
+        else:
+            return jsonify({"error": "Suricata manager not initialized"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/suricata/logs', methods=['GET'])
 def get_suricata_logs():
-    if not suricata_manager:
-        return jsonify({'status': 'error', 'message': 'Suricata manager not initialized.'}), 500
-    
-    log_file = suricata_manager.eve_json_path
-    logs = []
-    if log_file.exists():
-        try:
-            with open(log_file, 'r') as f:
-                for line in f:
-                    try:
-                        log_entry = json.loads(line)
-                        if log_entry.get('event_type') == 'alert':
-                            alert = log_entry.get('alert', {})
-                            severity_map = {1: 'Critical', 2: 'High', 3: 'Medium', 4: 'Low'}
-                            severity = severity_map.get(alert.get('severity'), 'Unknown')
-                            logs.append({
-                                'timestamp': log_entry.get('timestamp'),
-                                'severity': severity,
-                                'signature': alert.get('signature'),
-                                'category': alert.get('category'),
-                                'source_ip': log_entry.get('src_ip'),
-                                'source_port': log_entry.get('src_port'),
-                                'dest_ip': log_entry.get('dest_ip'),
-                                'dest_port': log_entry.get('dest_port'),
-                                'protocol': log_entry.get('proto'),
-                            })
-                    except json.JSONDecodeError:
-                        continue
-            # Return most recent logs first
-            return jsonify({'status': 'success', 'logs': logs[::-1]})
-        except Exception as e:
-            return jsonify({'status': 'error', 'message': str(e)}), 500
-    return jsonify({'status': 'success', 'logs': []})
-
+    """Get Suricata log file contents."""
+    try:
+        if suricata_manager and suricata_manager.eve_json_path.exists():
+            with open(suricata_manager.eve_json_path, 'r') as f:
+                # Get last 100 lines
+                lines = f.readlines()[-100:]
+                return jsonify({
+                    "success": True,
+                    "logs": lines,
+                    "file_path": str(suricata_manager.eve_json_path)
+                })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Log file not found or manager not initialized"
+            }), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 # --- End Suricata API Endpoints ---
 
 

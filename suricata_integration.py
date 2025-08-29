@@ -24,7 +24,6 @@ logging.basicConfig(
     ],
 )
 logger = logging.getLogger("suricata_integration")
-logging.basicConfig(level=logging.DEBUG)
 # --------------------------------------------------------------------------------------
 # Paths and helpers
 # --------------------------------------------------------------------------------------

@@ -3375,3 +3375,19 @@ This is Suricata version 7.0.10 RELEASE
 2025-08-29 10:38:20,267 - suricata_integration - INFO - Watching directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
 2025-08-29 10:38:22,919 - __main__ - INFO - additional_data column already exists
 2025-08-29 10:38:22,936 - __main__ - INFO - additional_data column already exists
+2025-08-29 10:50:16,002 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata
+2025-08-29 10:50:16,003 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs
+2025-08-29 10:50:16,004 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\rules
+2025-08-29 10:50:16,005 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 10:50:16,471 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 10:50:16,471 - __main__ - INFO - Checking API configurations...
+2025-08-29 10:50:16,472 - __main__ - INFO - All configurations present
+2025-08-29 10:50:16,472 - __main__ - INFO - Gemini API configured successfully
+2025-08-29 10:50:17,621 - __main__ - INFO - Successfully connected to Jira. Available projects: SMS, MP
+2025-08-29 10:50:17,781 - __main__ - INFO - Available issue types: Subtask, Subtask, Story, Task, Task, Epic, Epic, Epic
+2025-08-29 10:50:17,884 - __main__ - INFO - Available priorities: Highest, High, Medium, Low, Lowest
+2025-08-29 10:50:17,885 - __main__ - INFO - Loading model from alert_classifier.pkl
+2025-08-29 10:50:17,911 - __main__ - INFO - Model type: <class 'sklearn.ensemble._forest.RandomForestClassifier'>
+2025-08-29 10:50:17,911 - __main__ - INFO - Loading vectorizer from tfidf_vectorizer.pkl
+2025-08-29 10:50:17,928 - __main__ - INFO - Vectorizer type: <class 'sklearn.feature_extraction.text.TfidfVectorizer'>
+2025-08-29 10:50:17,928 - __main__ - INFO - Model and vectorizer loaded successfully
