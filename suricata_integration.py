@@ -101,13 +101,22 @@ class EveTailHandler(FileSystemEventHandler):
             self.process_new_lines()
 
 class SuricataWatcher:
-    def __init__(self, on_alert):
+    def __init__(self, on_alert=None, interface=None):
+        if on_alert is None:
+            # safe default that just logs
+            def on_alert(evt): 
+                logging.getLogger("suricata_integration").info(f"Alert: {evt}")
+                
         self.on_alert = on_alert
+        self.interface = interface
         self.observer = None
         self.handler = None
         self.dir_to_watch = None
         self.eve_path, self.using_windows_service = resolve_eve_paths()
-        logger.info(f"EVE target: {self.eve_path} (windows_service={self.using_windows_service})")
+        # add legacy attribute name expected by app.py:
+        self.eve_json_path = self.eve_path
+        self._running = False
+        logger.info(f"EVE target: {self.eve_path} (windows_service={self.using_windows_service}, interface={self.interface})")
 
     def start(self):
         self.dir_to_watch = self.eve_path.parent
@@ -115,6 +124,7 @@ class SuricataWatcher:
         self.observer = Observer()
         self.observer.schedule(self.handler, str(self.dir_to_watch), recursive=False)
         self.observer.start()
+        self._running = True
         logger.info(f"Watching directory for eve.json changes: {self.dir_to_watch}")
 
         # Background thread to poll in case some editors don't trigger modify events
@@ -132,6 +142,7 @@ class SuricataWatcher:
         if self.observer:
             self.observer.stop()
             self.observer.join()
+            self._running = False
 
 # Example alert callback: enrich/route to DB, JIRA, Slack, etc.
 def handle_suricata_alert(evt: dict):
@@ -147,6 +158,13 @@ def start_suricata_tail(on_alert=handle_suricata_alert):
     watcher.start()
     return watcher
 
+def get_status(self):
+        return {
+            "suricata_running": self._running,
+            "eve_json_path": str(self.eve_json_path),
+            "eve_exists": self.eve_json_path.exists(),
+            "using_windows_service": self.using_windows_service,
+        }
 if __name__ == "__main__":
     # Manual run for local testing
     watcher = start_suricata_tail()

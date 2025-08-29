@@ -20,7 +20,7 @@ import time
 import random
 import requests
 from flask_socketio import SocketIO, emit
-from suricata_integration import SuricataManager
+from suricata_integration import SuricataWatcher
 from network_utils import detect_primary_network_interface
 
 # Load environment variables from .env file with force reload
@@ -94,7 +94,7 @@ def initialize_suricata():
         primary_interface = detect_primary_network_interface()
         if primary_interface:
             logger.info(f"Primary network interface detected: {primary_interface}")
-            suricata_manager = SuricataManager(interface=primary_interface)
+            suricata_manager = SuricataWatcher(interface=primary_interface)
             logger.info("SuricataManager initialized successfully.")
         else:
             logger.error("Could not detect a primary network interface for Suricata.")
