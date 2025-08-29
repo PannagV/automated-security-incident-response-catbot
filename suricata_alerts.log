@@ -3852,3 +3852,103 @@ This is Suricata version 7.0.10 RELEASE
 2025-08-29 11:46:31,193 - __main__ - INFO - Suricata manager started successfully
 2025-08-29 11:46:32,604 - __main__ - INFO - additional_data column already exists
 2025-08-29 11:46:32,627 - __main__ - INFO - additional_data column already exists
+2025-08-29 11:48:31,785 - werkzeug - INFO -  * Detected change in 'C:\\Users\\panna\\Documents\\GitHub\\Secbot\\test_network_detection.py', reloading
+2025-08-29 11:48:34,806 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-29 11:48:41,434 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata
+2025-08-29 11:48:41,438 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs
+2025-08-29 11:48:41,441 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\rules
+2025-08-29 11:48:41,443 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 11:48:41,999 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 11:48:42,002 - __main__ - INFO - Checking API configurations...
+2025-08-29 11:48:42,004 - __main__ - INFO - All configurations present
+2025-08-29 11:48:42,005 - __main__ - INFO - Gemini API configured successfully
+2025-08-29 11:48:42,942 - __main__ - INFO - Successfully connected to Jira. Available projects: SMS, MP
+2025-08-29 11:48:43,066 - __main__ - INFO - Available issue types: Subtask, Subtask, Story, Task, Task, Epic, Epic, Epic
+2025-08-29 11:48:43,174 - __main__ - INFO - Available priorities: Highest, High, Medium, Low, Lowest
+2025-08-29 11:48:43,176 - __main__ - INFO - Loading model from alert_classifier.pkl
+2025-08-29 11:48:43,222 - __main__ - INFO - Model type: <class 'sklearn.ensemble._forest.RandomForestClassifier'>
+2025-08-29 11:48:43,225 - __main__ - INFO - Loading vectorizer from tfidf_vectorizer.pkl
+2025-08-29 11:48:43,247 - __main__ - INFO - Vectorizer type: <class 'sklearn.feature_extraction.text.TfidfVectorizer'>
+2025-08-29 11:48:43,248 - __main__ - INFO - Model and vectorizer loaded successfully
+2025-08-29 11:48:43,571 - __main__ - INFO - Database tables created successfully
+2025-08-29 11:48:43,573 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 11:48:43,577 - suricata_integration - INFO - Watching directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 11:48:43,580 - __main__ - INFO - Suricata manager started successfully
+2025-08-29 11:48:43,581 - werkzeug - WARNING -  * Debugger is active!
+2025-08-29 11:48:43,588 - werkzeug - INFO -  * Debugger PIN: 497-607-750
+2025-08-29 11:48:53,042 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 11:48:53,046 - suricata_integration - INFO - Watching directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 11:48:53,048 - __main__ - INFO - Suricata manager started successfully
+2025-08-29 11:48:53,049 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 11:48:53,052 - suricata_integration - INFO - Watching directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 11:48:53,061 - __main__ - INFO - Suricata manager started successfully
+2025-08-29 11:49:58,616 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata
+2025-08-29 11:49:58,617 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs
+2025-08-29 11:49:58,617 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\rules
+2025-08-29 11:49:58,618 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 11:49:59,037 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 11:49:59,037 - __main__ - INFO - Checking API configurations...
+2025-08-29 11:49:59,037 - __main__ - INFO - All configurations present
+2025-08-29 11:49:59,037 - __main__ - INFO - Gemini API configured successfully
+2025-08-29 11:50:00,015 - __main__ - INFO - Successfully connected to Jira. Available projects: SMS, MP
+2025-08-29 11:50:00,118 - __main__ - INFO - Available issue types: Subtask, Subtask, Story, Task, Task, Epic, Epic, Epic
+2025-08-29 11:50:00,225 - __main__ - INFO - Available priorities: Highest, High, Medium, Low, Lowest
+2025-08-29 11:50:00,225 - __main__ - INFO - Loading model from alert_classifier.pkl
+2025-08-29 11:50:00,254 - __main__ - INFO - Model type: <class 'sklearn.ensemble._forest.RandomForestClassifier'>
+2025-08-29 11:50:00,254 - __main__ - INFO - Loading vectorizer from tfidf_vectorizer.pkl
+2025-08-29 11:50:00,269 - __main__ - INFO - Vectorizer type: <class 'sklearn.feature_extraction.text.TfidfVectorizer'>
+2025-08-29 11:50:00,270 - __main__ - INFO - Model and vectorizer loaded successfully
+2025-08-29 11:50:00,553 - __main__ - INFO - Database tables created successfully
+2025-08-29 11:50:00,554 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 11:50:00,556 - suricata_integration - INFO - Watching directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 11:50:00,557 - __main__ - INFO - Suricata manager started successfully
+2025-08-29 11:50:00,558 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-08-29 11:50:04,722 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata
+2025-08-29 11:50:04,723 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs
+2025-08-29 11:50:04,723 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\rules
+2025-08-29 11:50:04,724 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 11:50:05,102 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 11:50:05,103 - __main__ - INFO - Checking API configurations...
+2025-08-29 11:50:05,103 - __main__ - INFO - All configurations present
+2025-08-29 11:50:05,103 - __main__ - INFO - Gemini API configured successfully
+2025-08-29 11:50:05,859 - __main__ - INFO - Successfully connected to Jira. Available projects: SMS, MP
+2025-08-29 11:50:05,957 - __main__ - INFO - Available issue types: Subtask, Subtask, Story, Task, Task, Epic, Epic, Epic
+2025-08-29 11:50:06,287 - __main__ - INFO - Available priorities: Highest, High, Medium, Low, Lowest
+2025-08-29 11:50:06,288 - __main__ - INFO - Loading model from alert_classifier.pkl
+2025-08-29 11:50:06,338 - __main__ - INFO - Model type: <class 'sklearn.ensemble._forest.RandomForestClassifier'>
+2025-08-29 11:50:06,339 - __main__ - INFO - Loading vectorizer from tfidf_vectorizer.pkl
+2025-08-29 11:50:06,403 - __main__ - INFO - Vectorizer type: <class 'sklearn.feature_extraction.text.TfidfVectorizer'>
+2025-08-29 11:50:06,403 - __main__ - INFO - Model and vectorizer loaded successfully
+2025-08-29 11:50:06,624 - __main__ - INFO - Database tables created successfully
+2025-08-29 11:50:06,624 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 11:50:06,627 - suricata_integration - INFO - Watching directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 11:50:06,628 - __main__ - INFO - Suricata manager started successfully
+2025-08-29 11:50:06,629 - werkzeug - WARNING -  * Debugger is active!
+2025-08-29 11:50:06,656 - werkzeug - INFO -  * Debugger PIN: 418-980-143
+2025-08-29 11:50:22,352 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 11:50:22,430 - suricata_integration - INFO - Watching directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 11:50:22,431 - __main__ - INFO - Suricata manager started successfully
+2025-08-29 11:50:22,432 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 11:50:22,433 - suricata_integration - INFO - Watching directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 11:50:22,434 - __main__ - INFO - Suricata manager started successfully
+2025-08-29 12:14:10,890 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata
+2025-08-29 12:14:10,891 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\configs
+2025-08-29 12:14:10,892 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\rules
+2025-08-29 12:14:10,892 - suricata_integration - INFO - Created directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 12:14:11,370 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 12:14:11,370 - __main__ - INFO - Checking API configurations...
+2025-08-29 12:14:11,371 - __main__ - INFO - All configurations present
+2025-08-29 12:14:11,371 - __main__ - INFO - Gemini API configured successfully
+2025-08-29 12:14:13,521 - __main__ - INFO - Successfully connected to Jira. Available projects: SMS, MP
+2025-08-29 12:14:13,628 - __main__ - INFO - Available issue types: Subtask, Subtask, Story, Task, Task, Epic, Epic, Epic
+2025-08-29 12:14:13,721 - __main__ - INFO - Available priorities: Highest, High, Medium, Low, Lowest
+2025-08-29 12:14:13,721 - __main__ - INFO - Loading model from alert_classifier.pkl
+2025-08-29 12:14:13,738 - __main__ - INFO - Model type: <class 'sklearn.ensemble._forest.RandomForestClassifier'>
+2025-08-29 12:14:13,738 - __main__ - INFO - Loading vectorizer from tfidf_vectorizer.pkl
+2025-08-29 12:14:13,756 - __main__ - INFO - Vectorizer type: <class 'sklearn.feature_extraction.text.TfidfVectorizer'>
+2025-08-29 12:14:13,756 - __main__ - INFO - Model and vectorizer loaded successfully
+2025-08-29 12:14:15,338 - __main__ - INFO - Database tables created successfully
+2025-08-29 12:14:15,339 - suricata_integration - INFO - EVE target: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs\eve.json (windows_service=False, interface=None)
+2025-08-29 12:14:15,340 - suricata_integration - INFO - Watching directory: C:\Users\panna\Documents\GitHub\Secbot\suricata\logs
+2025-08-29 12:14:15,341 - __main__ - INFO - Suricata manager started successfully
+2025-08-29 12:14:15,341 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
