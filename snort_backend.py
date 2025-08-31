@@ -23,7 +23,7 @@ class SnortManager:
         self.alerts = []
         self.max_alerts = 1000
         self.snort_errors = []
-        
+        self.debug_mode = False
     def get_default_interface(self):
         """Get the primary active network interface for Snort on Windows"""
         try:
@@ -211,52 +211,125 @@ class SnortManager:
         except Exception as e:
             return {"status": "error", "message": f"Configuration test error: {str(e)}"}
     
-    def start_snort(self):
-        """Start Snort IDS process with better error handling"""
+    def start_snort(self, debug_mode=False):
+        """Start Snort IDS process with optional terminal window for debugging"""
         if self.is_running:
             return {"status": "already_running", "message": "Snort is already running"}
-        
-        # Test configuration first
-        config_test = self.test_snort_config()
-        if config_test["status"] != "success":
-            return config_test
         
         try:
             # Ensure log directory exists
             self.ensure_log_directory()
             
-            # Create a simple test rule first
+            # Create test rules
             self.create_test_rule()
             
-            # Snort command for IDS mode - simplified for Windows
-            cmd = [
-                self.snort_executable,
-                "-A", "fast",  # Fast alert mode
-                "-c", self.snort_config_path,  # Configuration file
-                "-i", self.interface,  # Network interface
-                "-l", r"C:\Snort\log",  # Log directory
-                "-v" , # Verbose mode instead of quiet (-q)
-                "-k", "none" # Disable checksum verification
+            # Remove any existing log files
+            if os.path.exists(self.log_file_path):
+                os.remove(self.log_file_path)
+            
+            if debug_mode:
+                # Debug mode - open terminal window
+                return self._start_snort_with_terminal()
+            else:
+                # Regular mode - background process
+                return self._start_snort_background()
+                
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to start Snort: {str(e)}"}
 
-            ]
-
-            # Change the subprocess creation to show window for debugging
+    def _start_snort_with_terminal(self):
+        """Start Snort with a visible terminal window for debugging"""
+        try:
+            # Create a batch file to run Snort with proper parameters
+            batch_file_path = r"C:\Snort\log\run_snort_debug.bat"
+            
+            # Snort command for debugging
+            snort_cmd = f'''@echo off
+    echo Starting Snort IDS in Debug Mode...
+    echo Configuration: {self.snort_config_path}
+    echo Interface: {self.interface}
+    echo Log Directory: C:\\Snort\\log
+    echo.
+    cd /d "C:\\Snort\\bin"
+    echo Running: snort -A fast -v -i {self.interface} -c "{self.snort_config_path}" -l "C:\\Snort\\log" -N
+    echo.
+    snort -A fast -v -i {self.interface} -c "{self.snort_config_path}" -l "C:\\Snort\\log" -N
+    echo.
+    echo Snort has stopped. Press any key to close this window...
+    pause'''
+            
+            # Write the batch file
+            with open(batch_file_path, 'w') as f:
+                f.write(snort_cmd)
+            
+            print(f"Created debug batch file: {batch_file_path}")
+            
+            # Start the batch file in a new terminal window
             self.snort_process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                # Remove CREATE_NO_WINDOW to see the console
-                # creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0,
+                ['cmd', '/c', 'start', 'cmd', '/k', batch_file_path],
+                shell=True,
                 cwd=r"C:\Snort\bin"
             )
-
             
-            # Wait a moment to see if it starts successfully
+            # Wait a moment
+            time.sleep(2)
+            
+            # Find the Snort process by name (since we started it via cmd)
+            snort_pid = self._find_snort_process()
+            
+            self.is_running = True
+            self.debug_mode = True
+            
+            # Start monitoring threads
+            log_thread = threading.Thread(target=self.monitor_log_file, daemon=True)
+            log_thread.start()
+            
+            monitor_thread = threading.Thread(target=self.monitor_snort_process, daemon=True)
+            monitor_thread.start()
+            
+            return {
+                "status": "started_debug", 
+                "message": f"Snort started in DEBUG mode with terminal window on interface {self.interface}",
+                "pid": snort_pid,
+                "debug_mode": True,
+                "batch_file": batch_file_path
+            }
+            
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to start Snort in debug mode: {str(e)}"}
+
+    def _start_snort_background(self):
+        """Start Snort in background mode (original method)"""
+        try:
+            cmd = [
+                self.snort_executable,
+                "-A", "fast",
+                "-N",
+                "-c", self.snort_config_path,
+                "-i", self.interface,
+                "-l", r"C:\Snort\log",
+                "-q"
+            ]
+            
+            print(f"Starting Snort in background with command: {' '.join(cmd)}")
+            
+            original_dir = os.getcwd()
+            os.chdir(r"C:\Snort\bin")
+            
+            try:
+                self.snort_process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0,
+                    cwd=r"C:\Snort\bin"
+                )
+            finally:
+                os.chdir(original_dir)
+            
             time.sleep(3)
             
-            # Check if process is still running
             if self.snort_process.poll() is not None:
-                # Process has already terminated
                 stdout, stderr = self.snort_process.communicate()
                 return {
                     "status": "error",
@@ -266,29 +339,56 @@ class SnortManager:
                 }
             
             self.is_running = True
+            self.debug_mode = False
             
-            # Start log monitoring thread
+            # Start monitoring threads
             log_thread = threading.Thread(target=self.monitor_log_file, daemon=True)
             log_thread.start()
             
-            # Start process monitoring thread
             monitor_thread = threading.Thread(target=self.monitor_process, daemon=True)
             monitor_thread.start()
             
             return {
                 "status": "started", 
-                "message": f"Snort started successfully on interface {self.interface}",
-                "pid": self.snort_process.pid
+                "message": f"Snort started in background mode on interface {self.interface}",
+                "pid": self.snort_process.pid,
+                "debug_mode": False
             }
             
-        except FileNotFoundError:
-            return {
-                "status": "error", 
-                "message": f"Snort executable not found at {self.snort_executable}. Please ensure Snort is installed."
-            }
         except Exception as e:
             return {"status": "error", "message": f"Failed to start Snort: {str(e)}"}
-    
+
+    def _find_snort_process(self):
+        """Find running Snort process PID"""
+        try:
+            for proc in psutil.process_iter(['pid', 'name']):
+                if 'snort' in proc.info['name'].lower():
+                    return proc.info['pid']
+            return None
+        except:
+            return None
+
+    def monitor_snort_process(self):
+        """Monitor Snort process specifically for debug mode"""
+        while self.is_running:
+            try:
+                # Look for snort.exe process
+                snort_found = False
+                for proc in psutil.process_iter(['pid', 'name']):
+                    if 'snort' in proc.info['name'].lower():
+                        snort_found = True
+                        break
+                
+                if not snort_found:
+                    print("Snort process no longer found")
+                    self.is_running = False
+                    break
+                    
+                time.sleep(5)
+            except Exception as e:
+                print(f"Error monitoring Snort process: {e}")
+                break
+
     def create_test_rule(self):
         """Create a simple test rule to ensure Snort is working"""
         test_rules_path = r"C:\Snort\rules\test.rules"
@@ -646,6 +746,20 @@ def set_snort_interface(interface_id):
 def debug_snort():
     result = snort_manager.debug_snort_traffic()
     return jsonify(result)
+
+#debug routes
+@app.route('/snort/start/debug', methods=['POST'])
+def start_snort_debug():
+    """Start Snort in debug mode with terminal window"""
+    result = snort_manager.start_snort(debug_mode=True)
+    return jsonify(result)
+
+@app.route('/snort/start/background', methods=['POST'])
+def start_snort_background():
+    """Start Snort in background mode (no terminal)"""
+    result = snort_manager.start_snort(debug_mode=False)
+    return jsonify(result)
+
 
 if __name__ == '__main__':
     print("Starting Snort Backend Server...")
