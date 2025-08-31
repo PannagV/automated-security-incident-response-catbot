@@ -308,6 +308,7 @@ class SnortManager:
                 "-c", self.snort_config_path,
                 "-i", self.interface,
                 "-l", r"C:\Snort\log",
+                "-k", "none",
                 "-q"
             ]
             
@@ -590,42 +591,51 @@ alert icmp any any -> $HOME_NET any (msg:"NMAP Ping Sweep Detected"; itype:8; ds
             return None
     
     def monitor_log_file(self):
-        """Monitor Snort log file with enhanced debugging"""
+        """Enhanced log file monitoring with debugging"""
         print(f"Starting to monitor log file: {self.log_file_path}")
         
-        # Check if log file exists every second for 60 seconds
+        # Create the log file if it doesn't exist
+        if not os.path.exists(self.log_file_path):
+            try:
+                # Create empty file
+                with open(self.log_file_path, 'w') as f:
+                    f.write("")
+                print(f"Created empty log file: {self.log_file_path}")
+            except Exception as e:
+                print(f"Error creating log file: {e}")
+        
+        # Check file permissions
+        try:
+            with open(self.log_file_path, 'a') as f:
+                f.write("")  # Test write access
+            print("Log file is writable")
+        except Exception as e:
+            print(f"Log file write test failed: {e}")
+            return
+        
+        # Wait for log file to have content or timeout
         wait_count = 0
-        while self.is_running and not os.path.exists(self.log_file_path) and wait_count < 60:
-            print(f"Waiting for log file... {wait_count}/60")
+        while self.is_running and wait_count < 60:
+            if os.path.exists(self.log_file_path) and os.path.getsize(self.log_file_path) > 0:
+                print("Log file has content!")
+                break
+            print(f"Waiting for log content... {wait_count}/60")
             time.sleep(1)
             wait_count += 1
         
-        if not os.path.exists(self.log_file_path):
-            print(f"LOG FILE NOT CREATED: {self.log_file_path}")
-            # Try alternative log file locations
-            alt_paths = [
-                r"C:\Snort\log\snort.alert.ids",
-                r"C:\Snort\bin\alert.ids",
-                r"C:\Snort\bin\snort.alert.ids"
-            ]
-            
-            for alt_path in alt_paths:
-                if os.path.exists(alt_path):
-                    print(f"Found alternative log file: {alt_path}")
-                    self.log_file_path = alt_path
-                    break
+        if wait_count >= 60:
+            print("WARNING: No alerts written to log file after 60 seconds")
         
-        if not os.path.exists(self.log_file_path):
-            print("No log file found - alerts may not be captured")
-            return
-        
+        # Monitor the file
         try:
             with open(self.log_file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                # Start from beginning to catch any existing alerts
+                # Go to end if file already has content
+                f.seek(0, 2)
+                
                 while self.is_running:
                     line = f.readline()
                     if line:
-                        print(f"Raw log line: {line.strip()}")  # Debug output
+                        print(f"RAW ALERT LINE: {line.strip()}")
                         alert = self.parse_alert_line(line)
                         if alert:
                             self.alerts.append(alert)
@@ -633,12 +643,11 @@ alert icmp any any -> $HOME_NET any (msg:"NMAP Ping Sweep Detected"; itype:8; ds
                                 self.alerts = self.alerts[-self.max_alerts:]
                             print(f"PARSED ALERT: {alert['message']}")
                         else:
-                            print("Failed to parse line")
+                            print("FAILED TO PARSE ALERT LINE")
                     else:
                         time.sleep(0.1)
         except Exception as e:
             print(f"Error monitoring log file: {e}")
-
 
     
     def get_alerts(self):
@@ -686,6 +695,28 @@ alert icmp any any -> $HOME_NET any (msg:"NMAP Ping Sweep Detected"; itype:8; ds
             
         except Exception as e:
             return {"error": str(e)}
+    def monitor_console_output(self):
+        """Monitor Snort console output directly"""
+        if not self.snort_process or not self.snort_process.stdout:
+            return
+        
+        try:
+            for line in iter(self.snort_process.stdout.readline, b''):
+                if not self.is_running:
+                    break
+                
+                line_str = line.decode('utf-8', errors='ignore').strip()
+                print(f"CONSOLE OUTPUT: {line_str}")
+                
+                if '[**]' in line_str:  # This is an alert
+                    alert = self.parse_alert_line(line_str)
+                    if alert:
+                        self.alerts.append(alert)
+                        if len(self.alerts) > self.max_alerts:
+                            self.alerts = self.alerts[-self.max_alerts:]
+                        print(f"CAPTURED ALERT: {alert['message']}")
+        except Exception as e:
+            print(f"Error monitoring console output: {e}")
 
 
 # Global Snort manager instance

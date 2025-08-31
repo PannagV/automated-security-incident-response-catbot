@@ -9,6 +9,8 @@ const SnortIDS = () => {
     const [error, setError] = useState(null);
     const [autoRefresh, setAutoRefresh] = useState(true);
     const [filterSeverity, setFilterSeverity] = useState('all');
+    const [availableInterfaces, setAvailableInterfaces] = useState([]);
+    const [selectedInterface, setSelectedInterface] = useState('');
     const alertsEndRef = useRef(null);
     
     // Stats
@@ -23,6 +25,7 @@ const SnortIDS = () => {
     useEffect(() => {
         fetchSnortStatus();
         fetchAlerts();
+        fetchAvailableInterfaces();
         
         // Set up auto-refresh
         const interval = setInterval(() => {
@@ -51,82 +54,6 @@ const SnortIDS = () => {
             alertsEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [alerts, autoRefresh]);
-            // Add this state to your SnortIDS component
-        const [availableInterfaces, setAvailableInterfaces] = useState([]);
-        const [selectedInterface, setSelectedInterface] = useState('');
-
-        // Add this useEffect to fetch interfaces
-        useEffect(() => {
-            fetchAvailableInterfaces();
-        }, []);
-
-        const fetchAvailableInterfaces = async () => {
-            try {
-                const response = await fetch('http://127.0.0.1:5001/snort/interfaces');
-                if (response.ok) {
-                    const data = await response.json();
-                    setAvailableInterfaces(data.interfaces);
-                    setSelectedInterface(data.selected_interface);
-                }
-            } catch (err) {
-                console.error('Error fetching interfaces:', err);
-            }
-        };
-
-        const handleInterfaceChange = async (interfaceId) => {
-            try {
-                const response = await fetch(`http://127.0.0.1:5001/snort/interface/set/${interfaceId}`, {
-                    method: 'POST'
-                });
-                if (response.ok) {
-                    setSelectedInterface(interfaceId);
-                    setError(null);
-                }
-            } catch (err) {
-                setError('Failed to set interface');
-            }
-        };
-
-        // Add this interface selection section to your control panel
-        <div className="card-body">
-            <div className="row mb-3">
-                <div className="col-md-6">
-                    <label className="form-label">Network Interface</label>
-                    <select 
-                        className="form-select"
-                        value={selectedInterface}
-                        onChange={(e) => handleInterfaceChange(e.target.value)}
-                        disabled={snortStatus.status === 'running'}
-                    >
-                        {availableInterfaces.map((iface) => (
-                            <option key={iface.snort_number} value={iface.snort_number}>
-                                Interface {iface.snort_number}: {iface.name} 
-                                {iface.addresses.length > 0 && ` (${iface.addresses[0].ip})`}
-                                {iface.is_up ? ' - UP' : ' - DOWN'}
-                            </option>
-                        ))}
-                    </select>
-                    <small className="text-muted">
-                        Auto-detected primary interface: {selectedInterface}
-                    </small>
-                </div>
-                <div className="col-md-6">
-                    <button 
-                        className="btn btn-outline-info"
-                        onClick={fetchAvailableInterfaces}
-                        disabled={loading}
-                    >
-                        <i className="bi bi-arrow-clockwise me-2"></i>
-                        Refresh Interfaces
-                    </button>
-                </div>
-            </div>
-            
-            {/* Existing control buttons */}
-            <div className="d-flex flex-wrap gap-3 align-items-center">
-                {/* Your existing start/stop buttons */}
-            </div>
-        </div>
 
     const fetchSnortStatus = async () => {
         try {
@@ -154,10 +81,37 @@ const SnortIDS = () => {
         }
     };
 
-    const startSnort = async () => {
+    const fetchAvailableInterfaces = async () => {
+        try {
+            const response = await fetch('http://127.0.0.1:5001/snort/interfaces');
+            if (response.ok) {
+                const data = await response.json();
+                setAvailableInterfaces(data.interfaces);
+                setSelectedInterface(data.selected_interface);
+            }
+        } catch (err) {
+            console.error('Error fetching interfaces:', err);
+        }
+    };
+
+    const handleInterfaceChange = async (interfaceId) => {
+        try {
+            const response = await fetch(`http://127.0.0.1:5001/snort/interface/set/${interfaceId}`, {
+                method: 'POST'
+            });
+            if (response.ok) {
+                setSelectedInterface(interfaceId);
+                setError(null);
+            }
+        } catch (err) {
+            setError('Failed to set interface');
+        }
+    };
+
+    const startSnortBackground = async () => {
         setLoading(true);
         try {
-            const response = await fetch('http://127.0.0.1:5001/snort/start', {
+            const response = await fetch('http://127.0.0.1:5001/snort/start/background', {
                 method: 'POST'
             });
             const result = await response.json();
@@ -170,6 +124,26 @@ const SnortIDS = () => {
             }
         } catch (err) {
             setError('Failed to start Snort: ' + err.message);
+        }
+        setLoading(false);
+    };
+
+    const startSnortDebug = async () => {
+        setLoading(true);
+        try {
+            const response = await fetch('http://127.0.0.1:5001/snort/start/debug', {
+                method: 'POST'
+            });
+            const result = await response.json();
+            
+            if (result.status === 'started_debug' || result.status === 'already_running') {
+                setSnortStatus({ status: 'running', ...result });
+                setError(null);
+            } else {
+                setError(result.message);
+            }
+        } catch (err) {
+            setError('Failed to start Snort in debug mode: ' + err.message);
         }
         setLoading(false);
     };
@@ -220,6 +194,42 @@ const SnortIDS = () => {
         }
     };
 
+    const getScanTypeIcon = (scanType) => {
+        const icons = {
+            'syn': '🔍',
+            'connect': '🔗',
+            'fin': '🏁',
+            'xmas': '🎄',
+            'null': '⚫',
+            'ack': '✅',
+            'udp': '📡',
+            'ping_sweep': '📊',
+            'version': '🏷️',
+            'os_detection': '💻',
+            'aggressive': '⚡',
+            'stealth': '🥷'
+        };
+        return icons[scanType] || '🔍';
+    };
+
+    const getScanTypeColor = (scanType) => {
+        const colors = {
+            'syn': 'primary',
+            'connect': 'info',
+            'fin': 'warning',
+            'xmas': 'danger',
+            'null': 'dark',
+            'ack': 'success',
+            'udp': 'secondary',
+            'ping_sweep': 'info',
+            'version': 'warning',
+            'os_detection': 'danger',
+            'aggressive': 'danger',
+            'stealth': 'warning'
+        };
+        return colors[scanType] || 'secondary';
+    };
+
     const formatTimestamp = (timestamp) => {
         return new Date(timestamp).toLocaleString();
     };
@@ -245,6 +255,12 @@ const SnortIDS = () => {
                         <span className={`badge ${snortStatus.status === 'running' ? 'bg-success' : 'bg-secondary'}`}>
                             {snortStatus.status === 'running' ? 'ACTIVE' : 'STOPPED'}
                         </span>
+                        {snortStatus.debug_mode && (
+                            <span className="badge bg-info">
+                                <i className="bi bi-terminal me-1"></i>
+                                DEBUG MODE
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>
@@ -254,6 +270,34 @@ const SnortIDS = () => {
                     <i className="bi bi-exclamation-triangle me-2"></i>
                     {error}
                     <button type="button" className="btn-close" onClick={() => setError(null)}></button>
+                </div>
+            )}
+
+            {/* Show errors from Snort process */}
+            {snortStatus.errors && snortStatus.errors.length > 0 && (
+                <div className="col-12 mb-4">
+                    <div className="card border-danger">
+                        <div className="card-header bg-danger text-white">
+                            <h5 className="mb-0">
+                                <i className="bi bi-exclamation-triangle me-2"></i>
+                                Snort Process Errors
+                            </h5>
+                        </div>
+                        <div className="card-body">
+                            {snortStatus.errors.map((error, index) => (
+                                <div key={index} className="alert alert-danger mb-2">
+                                    <strong>Time:</strong> {new Date(error.timestamp).toLocaleString()}<br/>
+                                    <strong>Message:</strong> {error.message}<br/>
+                                    {error.stderr && (
+                                        <>
+                                            <strong>Error Details:</strong>
+                                            <pre className="mt-2 small">{error.stderr}</pre>
+                                        </>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -268,16 +312,67 @@ const SnortIDS = () => {
                             </h5>
                         </div>
                         <div className="card-body">
+                            {/* Interface Selection */}
+                            <div className="row mb-3">
+                                <div className="col-md-6">
+                                    <label className="form-label">Network Interface</label>
+                                    <select 
+                                        className="form-select"
+                                        value={selectedInterface}
+                                        onChange={(e) => handleInterfaceChange(e.target.value)}
+                                        disabled={snortStatus.status === 'running'}
+                                    >
+                                        {availableInterfaces.map((iface) => (
+                                            <option key={iface.snort_number} value={iface.snort_number}>
+                                                Interface {iface.snort_number}: {iface.name} 
+                                                {iface.addresses.length > 0 && ` (${iface.addresses[0].ip})`}
+                                                {iface.is_up ? ' - UP' : ' - DOWN'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <small className="text-muted">
+                                        Auto-detected primary interface: {selectedInterface}
+                                    </small>
+                                </div>
+                                <div className="col-md-6">
+                                    <label className="form-label">&nbsp;</label>
+                                    <div>
+                                        <button 
+                                            className="btn btn-outline-info"
+                                            onClick={fetchAvailableInterfaces}
+                                            disabled={loading}
+                                        >
+                                            <i className="bi bi-arrow-clockwise me-2"></i>
+                                            Refresh Interfaces
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Control Buttons */}
                             <div className="d-flex flex-wrap gap-3 align-items-center">
-                                <button 
-                                    className="btn btn-success"
-                                    onClick={startSnort}
-                                    disabled={loading || snortStatus.status === 'running'}
-                                >
-                                    <i className="bi bi-play-fill me-2"></i>
-                                    Start Snort
-                                </button>
-                                
+                                <div className="btn-group" role="group">
+                                    <button 
+                                        className="btn btn-success"
+                                        onClick={startSnortBackground}
+                                        disabled={loading || snortStatus.status === 'running'}
+                                        title="Start Snort in background mode (no terminal window)"
+                                    >
+                                        <i className="bi bi-play-fill me-2"></i>
+                                        Start (Background)
+                                    </button>
+                                    
+                                    <button 
+                                        className="btn btn-outline-success"
+                                        onClick={startSnortDebug}
+                                        disabled={loading || snortStatus.status === 'running'}
+                                        title="Start Snort with debug terminal window"
+                                    >
+                                        <i className="bi bi-terminal me-2"></i>
+                                        Start (Debug Terminal)
+                                    </button>
+                                </div>
+
                                 <button 
                                     className="btn btn-danger"
                                     onClick={stopSnort}
@@ -320,36 +415,27 @@ const SnortIDS = () => {
                                         PID: {snortStatus.pid}
                                     </span>
                                 )}
+
+                                {snortStatus.batch_file && (
+                                    <span className="badge bg-warning text-dark">
+                                        <i className="bi bi-file-text me-1"></i>
+                                        Debug Batch
+                                    </span>
+                                )}
                             </div>
+
+                            {/* Status Information */}
+                            {snortStatus.status === 'running' && snortStatus.debug_mode && (
+                                <div className="alert alert-info mt-3">
+                                    <i className="bi bi-info-circle me-2"></i>
+                                    <strong>Debug Mode Active:</strong> A terminal window should be open showing real-time Snort output. 
+                                    Watch the terminal window for packet processing and alert details.
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
-                // Add error display section
-                {snortStatus.errors && snortStatus.errors.length > 0 && (
-                    <div className="col-12 mb-4">
-                        <div className="card border-danger">
-                            <div className="card-header bg-danger text-white">
-                                <h5 className="mb-0">
-                                    <i className="bi bi-exclamation-triangle me-2"></i>
-                                    Snort Errors
-                                </h5>
-                            </div>
-                            <div className="card-body">
-                                {snortStatus.errors.map((error, index) => (
-                                    <div key={index} className="alert alert-danger mb-2">
-                                        <strong>Time:</strong> {new Date(error.timestamp).toLocaleString()}<br/>
-                                        <strong>Message:</strong> {error.message}<br/>
-                                        {error.stderr && (
-                                            <>
-                                                <strong>Error:</strong> <pre className="mt-2">{error.stderr}</pre>
-                                            </>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                )}
+
                 {/* Statistics */}
                 <div className="col-12 mb-4">
                     <div className="card">
@@ -436,6 +522,7 @@ const SnortIDS = () => {
                                                 <th>Time</th>
                                                 <th>Severity</th>
                                                 <th>Message</th>
+                                                <th>Scan Type</th>
                                                 <th>Protocol</th>
                                                 <th>Source</th>
                                                 <th>Destination</th>
@@ -444,7 +531,7 @@ const SnortIDS = () => {
                                         </thead>
                                         <tbody>
                                             {filteredAlerts.map((alert) => (
-                                                <tr key={alert.id} className="highlight-new">
+                                                <tr key={alert.id} className={`highlight-new ${alert.is_nmap_scan ? 'table-warning' : ''}`}>
                                                     <td className="text-nowrap small">
                                                         {formatTimestamp(alert.timestamp)}
                                                     </td>
@@ -456,8 +543,16 @@ const SnortIDS = () => {
                                                     </td>
                                                     <td>
                                                         <span title={alert.raw_log} className="text-truncate d-inline-block" style={{ maxWidth: '300px' }}>
+                                                            {alert.is_nmap_scan && <i className="bi bi-exclamation-triangle text-danger me-1"></i>}
                                                             {alert.message}
                                                         </span>
+                                                    </td>
+                                                    <td>
+                                                        {alert.scan_type && (
+                                                            <span className={`badge bg-${getScanTypeColor(alert.scan_type)}`}>
+                                                                {getScanTypeIcon(alert.scan_type)} {alert.scan_type.replace('_', ' ').toUpperCase()}
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td>
                                                         <span className="badge bg-secondary">{alert.protocol}</span>
@@ -483,6 +578,12 @@ const SnortIDS = () => {
                                             : 'Start Snort to begin monitoring your network for threats.'
                                         }
                                     </p>
+                                    {snortStatus.status === 'running' && snortStatus.debug_mode && (
+                                        <p className="text-info">
+                                            <i className="bi bi-terminal me-1"></i>
+                                            Check the debug terminal window for real-time packet processing details.
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -490,7 +591,6 @@ const SnortIDS = () => {
                 </div>
             </div>
         </div>
-        
     );
 };
 
