@@ -221,7 +221,7 @@ class SnortManager:
             self.ensure_log_directory()
             
             # Create test rules
-            self.create_test_rule()
+            #self.create_test_rule()
             
             # Remove any existing log files
             if os.path.exists(self.log_file_path):
@@ -389,34 +389,6 @@ class SnortManager:
             except Exception as e:
                 print(f"Error monitoring Snort process: {e}")
                 break
-
-    def create_test_rule(self):
-        """Create a simple test rule to ensure Snort is working"""
-        test_rules_path = r"C:\Snort\rules\test.rules"
-        
-        # Ensure rules directory exists
-        os.makedirs(os.path.dirname(test_rules_path), exist_ok=True)
-        
-        test_rules = """
-# Test Rules for Basic Functionality
-alert icmp any any -> any any (msg:"ICMP Test Rule"; sid:1000000; rev:1;)
-
-# Nmap Detection Rules
-alert tcp any any -> $HOME_NET any (msg:"NMAP TCP SYN Scan Detected"; flags:S; threshold:type both, track by_src, count 5, seconds 10; classtype:attempted-recon; sid:1000001; rev:1;)
-alert tcp any any -> $HOME_NET any (msg:"NMAP TCP Connect Scan"; flags:S; threshold:type both, track by_src, count 10, seconds 30; classtype:attempted-recon; sid:1000002; rev:1;)
-alert tcp any any -> $HOME_NET any (msg:"NMAP TCP FIN Scan"; flags:F; threshold:type both, track by_src, count 5, seconds 10; classtype:attempted-recon; sid:1000003; rev:1;)
-alert tcp any any -> $HOME_NET any (msg:"NMAP XMAS Tree Scan"; flags:FPU; threshold:type both, track by_src, count 3, seconds 10; classtype:attempted-recon; sid:1000004; rev:1;)
-alert tcp any any -> $HOME_NET any (msg:"NMAP NULL Scan"; flags:0; threshold:type both, track by_src, count 3, seconds 10; classtype:attempted-recon; sid:1000005; rev:1;)
-alert udp any any -> $HOME_NET any (msg:"NMAP UDP Scan Detected"; threshold:type both, track by_src, count 10, seconds 30; classtype:attempted-recon; sid:1000009; rev:1;)
-alert icmp any any -> $HOME_NET any (msg:"NMAP Ping Sweep Detected"; itype:8; dsize:0; threshold:type both, track by_src, count 5, seconds 10; classtype:attempted-recon; sid:1000010; rev:1;)
-"""
-        
-        try:
-            with open(test_rules_path, 'w') as f:
-                f.write(test_rules)
-            print(f"Created test rules at {test_rules_path}")
-        except Exception as e:
-            print(f"Error creating test rules: {e}")
     
     def monitor_process(self):
         """Monitor Snort process for unexpected termination"""
