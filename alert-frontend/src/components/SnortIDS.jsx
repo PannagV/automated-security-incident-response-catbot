@@ -51,6 +51,82 @@ const SnortIDS = () => {
             alertsEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [alerts, autoRefresh]);
+            // Add this state to your SnortIDS component
+        const [availableInterfaces, setAvailableInterfaces] = useState([]);
+        const [selectedInterface, setSelectedInterface] = useState('');
+
+        // Add this useEffect to fetch interfaces
+        useEffect(() => {
+            fetchAvailableInterfaces();
+        }, []);
+
+        const fetchAvailableInterfaces = async () => {
+            try {
+                const response = await fetch('http://127.0.0.1:5001/snort/interfaces');
+                if (response.ok) {
+                    const data = await response.json();
+                    setAvailableInterfaces(data.interfaces);
+                    setSelectedInterface(data.selected_interface);
+                }
+            } catch (err) {
+                console.error('Error fetching interfaces:', err);
+            }
+        };
+
+        const handleInterfaceChange = async (interfaceId) => {
+            try {
+                const response = await fetch(`http://127.0.0.1:5001/snort/interface/set/${interfaceId}`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    setSelectedInterface(interfaceId);
+                    setError(null);
+                }
+            } catch (err) {
+                setError('Failed to set interface');
+            }
+        };
+
+        // Add this interface selection section to your control panel
+        <div className="card-body">
+            <div className="row mb-3">
+                <div className="col-md-6">
+                    <label className="form-label">Network Interface</label>
+                    <select 
+                        className="form-select"
+                        value={selectedInterface}
+                        onChange={(e) => handleInterfaceChange(e.target.value)}
+                        disabled={snortStatus.status === 'running'}
+                    >
+                        {availableInterfaces.map((iface) => (
+                            <option key={iface.snort_number} value={iface.snort_number}>
+                                Interface {iface.snort_number}: {iface.name} 
+                                {iface.addresses.length > 0 && ` (${iface.addresses[0].ip})`}
+                                {iface.is_up ? ' - UP' : ' - DOWN'}
+                            </option>
+                        ))}
+                    </select>
+                    <small className="text-muted">
+                        Auto-detected primary interface: {selectedInterface}
+                    </small>
+                </div>
+                <div className="col-md-6">
+                    <button 
+                        className="btn btn-outline-info"
+                        onClick={fetchAvailableInterfaces}
+                        disabled={loading}
+                    >
+                        <i className="bi bi-arrow-clockwise me-2"></i>
+                        Refresh Interfaces
+                    </button>
+                </div>
+            </div>
+            
+            {/* Existing control buttons */}
+            <div className="d-flex flex-wrap gap-3 align-items-center">
+                {/* Your existing start/stop buttons */}
+            </div>
+        </div>
 
     const fetchSnortStatus = async () => {
         try {

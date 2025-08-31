@@ -25,130 +25,162 @@ class SnortManager:
         self.snort_errors = []
         
     def get_default_interface(self):
-    """Get the primary active network interface for Snort on Windows"""
-    try:
-        import socket
-        
-        # Method 1: Get the interface used for default route
-        primary_interface = self._get_primary_interface()
-        if primary_interface:
-            return primary_interface
-        
-        # Method 2: Find active non-loopback interfaces
-        active_interfaces = self._get_active_interfaces()
-        if active_interfaces:
-            return active_interfaces[0]
-        
-        # Fallback to interface 1
-        return "1"
-        
-    except Exception as e:
-        print(f"Error detecting interface: {e}")
-        return "1"
-
-def _get_primary_interface(self):
-    """Get the primary interface by checking default route"""
-    try:
-        import socket
-        
-        # Connect to a remote address to determine which interface is used
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            # Connect to Google DNS (doesn't actually send data)
-            s.connect(("8.8.8.8", 80))
-            local_ip = s.getsockname()[0]
-        
-        # Find which interface has this IP
-        interfaces = psutil.net_if_addrs()
-        for interface_name, addresses in interfaces.items():
-            for addr in addresses:
-                if addr.family.name == 'AF_INET' and addr.address == local_ip:
-                    # Convert interface name to Snort interface number
-                    return self._get_snort_interface_number(interface_name)
-        
-        return None
-        
-    except Exception as e:
-        print(f"Error getting primary interface: {e}")
-        return None
-
-def _get_active_interfaces(self):
-    """Get list of active network interfaces with their Snort numbers"""
-    try:
-        interfaces = psutil.net_if_addrs()
-        stats = psutil.net_if_stats()
-        active_interfaces = []
-        
-        for interface_name, addresses in interfaces.items():
-            # Skip loopback interfaces
-            if 'loopback' in interface_name.lower() or 'lo' in interface_name.lower():
-                continue
+        """Get the primary active network interface for Snort on Windows"""
+        try:
+            import socket
             
-            # Check if interface is up and has an IP address
-            if interface_name in stats and stats[interface_name].isup:
+            # Method 1: Get the interface used for default route
+            primary_interface = self._get_primary_interface()
+            if primary_interface:
+                return primary_interface
+            
+            # Method 2: Find active non-loopback interfaces
+            active_interfaces = self._get_active_interfaces()
+            if active_interfaces:
+                return active_interfaces[0]
+            
+            # Fallback to interface 1
+            return "1"
+            
+        except Exception as e:
+            print(f"Error detecting interface: {e}")
+            return "1"
+    def _get_windows_primary_interface(self):
+        """Use Windows route command to find primary interface"""
+        try:
+            import subprocess
+            
+            # Get default route on Windows
+            result = subprocess.run(['route', 'print', '0.0.0.0'], 
+                                capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                lines = result.stdout.split('\n')
+                for line in lines:
+                    if '0.0.0.0' in line and 'Gateway' not in line:
+                        # Parse the interface from route output
+                        parts = line.split()
+                        if len(parts) >= 4:
+                            interface_ip = parts[3]  # Interface IP
+                            
+                            # Find corresponding Snort interface number
+                            interfaces = psutil.net_if_addrs()
+                            for i, (name, addresses) in enumerate(interfaces.items(), 1):
+                                for addr in addresses:
+                                    if (addr.family.name == 'AF_INET' and 
+                                        addr.address == interface_ip):
+                                        return str(i)
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error using Windows route command: {e}")
+            return None
+
+    def _get_primary_interface(self):
+        """Get the primary interface by checking default route"""
+        try:
+            import socket
+            
+            # Connect to a remote address to determine which interface is used
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                # Connect to Google DNS (doesn't actually send data)
+                s.connect(("8.8.8.8", 80))
+                local_ip = s.getsockname()[0]
+            
+            # Find which interface has this IP
+            interfaces = psutil.net_if_addrs()
+            for interface_name, addresses in interfaces.items():
                 for addr in addresses:
-                    if (addr.family.name == 'AF_INET' and 
-                        not addr.address.startswith('127.') and
-                        not addr.address.startswith('169.254.')):  # Skip APIPA addresses
-                        
-                        snort_interface = self._get_snort_interface_number(interface_name)
-                        active_interfaces.append(snort_interface)
-                        print(f"Found active interface: {interface_name} -> Snort interface {snort_interface} (IP: {addr.address})")
-                        break
-        
-        return active_interfaces
-        
-    except Exception as e:
-        print(f"Error getting active interfaces: {e}")
-        return []
-
-def _get_snort_interface_number(self, interface_name):
-    """Convert Windows interface name to Snort interface number"""
-    try:
-        # Get list of all interfaces
-        interfaces = list(psutil.net_if_addrs().keys())
-        
-        # Find the index of our interface
-        if interface_name in interfaces:
-            # Snort interface numbers start at 1
-            interface_index = interfaces.index(interface_name) + 1
-            return str(interface_index)
-        
-        return "1"  # Default fallback
-        
-    except Exception as e:
-        print(f"Error converting interface name: {e}")
-        return "1"
-
-def list_all_interfaces(self):
-    """List all available network interfaces for debugging"""
-    try:
-        interfaces = psutil.net_if_addrs()
-        stats = psutil.net_if_stats()
-        interface_list = []
-        
-        for i, (interface_name, addresses) in enumerate(interfaces.items(), 1):
-            interface_info = {
-                "snort_number": str(i),
-                "name": interface_name,
-                "is_up": stats.get(interface_name, {}).isup if interface_name in stats else False,
-                "addresses": []
-            }
+                    if addr.family.name == 'AF_INET' and addr.address == local_ip:
+                        # Convert interface name to Snort interface number
+                        return self._get_snort_interface_number(interface_name)
             
-            for addr in addresses:
-                if addr.family.name == 'AF_INET':
-                    interface_info["addresses"].append({
-                        "ip": addr.address,
-                        "netmask": addr.netmask
-                    })
+            return None
             
-            interface_list.append(interface_info)
-        
-        return interface_list
-        
-    except Exception as e:
-        print(f"Error listing interfaces: {e}")
-        return []
+        except Exception as e:
+            print(f"Error getting primary interface: {e}")
+            return None
 
+    def _get_active_interfaces(self):
+        """Get list of active network interfaces with their Snort numbers"""
+        try:
+            interfaces = psutil.net_if_addrs()
+            stats = psutil.net_if_stats()
+            active_interfaces = []
+            
+            for interface_name, addresses in interfaces.items():
+                # Skip loopback interfaces
+                if 'loopback' in interface_name.lower() or 'lo' in interface_name.lower():
+                    continue
+                
+                # Check if interface is up and has an IP address
+                if interface_name in stats and stats[interface_name].isup:
+                    for addr in addresses:
+                        if (addr.family.name == 'AF_INET' and 
+                            not addr.address.startswith('127.') and
+                            not addr.address.startswith('169.254.')):  # Skip APIPA addresses
+                            
+                            snort_interface = self._get_snort_interface_number(interface_name)
+                            active_interfaces.append(snort_interface)
+                            print(f"Found active interface: {interface_name} -> Snort interface {snort_interface} (IP: {addr.address})")
+                            break
+            
+            return active_interfaces
+            
+        except Exception as e:
+            print(f"Error getting active interfaces: {e}")
+            return []
+
+    def _get_snort_interface_number(self, interface_name):
+        """Convert Windows interface name to Snort interface number"""
+        try:
+            # Get list of all interfaces
+            interfaces = list(psutil.net_if_addrs().keys())
+            
+            # Find the index of our interface
+            if interface_name in interfaces:
+                # Snort interface numbers start at 1
+                interface_index = interfaces.index(interface_name) + 1
+                return str(interface_index)
+            
+            return "1"  # Default fallback
+            
+        except Exception as e:
+            print(f"Error converting interface name: {e}")
+            return "1"
+
+    def list_all_interfaces(self):
+        """List all available network interfaces for debugging"""
+        try:
+            interfaces = psutil.net_if_addrs()
+            stats = psutil.net_if_stats()
+            interface_list = []
+            
+            for i, (interface_name, addresses) in enumerate(interfaces.items(), 1):
+                interface_info = {
+                    "snort_number": str(i),
+                    "name": interface_name,
+                    "is_up": stats.get(interface_name, {}).isup if interface_name in stats else False,
+                    "addresses": []
+                }
+                
+                for addr in addresses:
+                    if addr.family.name == 'AF_INET':
+                        interface_info["addresses"].append({
+                            "ip": addr.address,
+                            "netmask": addr.netmask
+                        })
+                
+                interface_list.append(interface_info)
+            
+            return interface_list
+            
+        except Exception as e:
+            print(f"Error listing interfaces: {e}")
+            return []
+
+    
     def ensure_log_directory(self):
         """Ensure log directory exists"""
         log_dir = os.path.dirname(self.log_file_path)
@@ -589,6 +621,26 @@ def clear_snort_alerts():
 def test_snort_config():
     result = snort_manager.test_snort_config()
     return jsonify(result)
+
+@app.route('/snort/interfaces', methods=['GET'])
+def list_network_interfaces():
+    """List all available network interfaces"""
+    interfaces = snort_manager.list_all_interfaces()
+    return jsonify({
+        "interfaces": interfaces,
+        "selected_interface": snort_manager.interface,
+        "primary_interface": snort_manager._get_primary_interface()
+    })
+
+@app.route('/snort/interface/set/<interface_id>', methods=['POST'])
+def set_snort_interface(interface_id):
+    """Set the Snort interface manually"""
+    snort_manager.interface = interface_id
+    return jsonify({
+        "status": "success",
+        "message": f"Interface set to {interface_id}",
+        "interface": interface_id
+    })
 
 @app.route('/snort/debug', methods=['POST'])
 def debug_snort():
