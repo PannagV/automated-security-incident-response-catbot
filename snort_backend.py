@@ -1,0 +1,605 @@
+import subprocess
+import threading
+import time
+import json
+import os
+import re
+from datetime import datetime
+from flask import Flask, jsonify
+from flask_cors import CORS
+import psutil
+
+app = Flask(__name__)
+CORS(app)
+
+class SnortManager:
+    def __init__(self):
+        self.snort_process = None
+        self.is_running = False
+        self.log_file_path = r"C:\Snort\log\alert.ids"
+        self.snort_config_path = r"C:\Snort\etc\snort_minimal.conf"
+        self.snort_executable = r"C:\Snort\bin\snort.exe"
+        self.interface = self.get_default_interface()
+        self.alerts = []
+        self.max_alerts = 1000
+        self.snort_errors = []
+        
+    def get_default_interface(self):
+    """Get the primary active network interface for Snort on Windows"""
+    try:
+        import socket
+        
+        # Method 1: Get the interface used for default route
+        primary_interface = self._get_primary_interface()
+        if primary_interface:
+            return primary_interface
+        
+        # Method 2: Find active non-loopback interfaces
+        active_interfaces = self._get_active_interfaces()
+        if active_interfaces:
+            return active_interfaces[0]
+        
+        # Fallback to interface 1
+        return "1"
+        
+    except Exception as e:
+        print(f"Error detecting interface: {e}")
+        return "1"
+
+def _get_primary_interface(self):
+    """Get the primary interface by checking default route"""
+    try:
+        import socket
+        
+        # Connect to a remote address to determine which interface is used
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            # Connect to Google DNS (doesn't actually send data)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+        
+        # Find which interface has this IP
+        interfaces = psutil.net_if_addrs()
+        for interface_name, addresses in interfaces.items():
+            for addr in addresses:
+                if addr.family.name == 'AF_INET' and addr.address == local_ip:
+                    # Convert interface name to Snort interface number
+                    return self._get_snort_interface_number(interface_name)
+        
+        return None
+        
+    except Exception as e:
+        print(f"Error getting primary interface: {e}")
+        return None
+
+def _get_active_interfaces(self):
+    """Get list of active network interfaces with their Snort numbers"""
+    try:
+        interfaces = psutil.net_if_addrs()
+        stats = psutil.net_if_stats()
+        active_interfaces = []
+        
+        for interface_name, addresses in interfaces.items():
+            # Skip loopback interfaces
+            if 'loopback' in interface_name.lower() or 'lo' in interface_name.lower():
+                continue
+            
+            # Check if interface is up and has an IP address
+            if interface_name in stats and stats[interface_name].isup:
+                for addr in addresses:
+                    if (addr.family.name == 'AF_INET' and 
+                        not addr.address.startswith('127.') and
+                        not addr.address.startswith('169.254.')):  # Skip APIPA addresses
+                        
+                        snort_interface = self._get_snort_interface_number(interface_name)
+                        active_interfaces.append(snort_interface)
+                        print(f"Found active interface: {interface_name} -> Snort interface {snort_interface} (IP: {addr.address})")
+                        break
+        
+        return active_interfaces
+        
+    except Exception as e:
+        print(f"Error getting active interfaces: {e}")
+        return []
+
+def _get_snort_interface_number(self, interface_name):
+    """Convert Windows interface name to Snort interface number"""
+    try:
+        # Get list of all interfaces
+        interfaces = list(psutil.net_if_addrs().keys())
+        
+        # Find the index of our interface
+        if interface_name in interfaces:
+            # Snort interface numbers start at 1
+            interface_index = interfaces.index(interface_name) + 1
+            return str(interface_index)
+        
+        return "1"  # Default fallback
+        
+    except Exception as e:
+        print(f"Error converting interface name: {e}")
+        return "1"
+
+def list_all_interfaces(self):
+    """List all available network interfaces for debugging"""
+    try:
+        interfaces = psutil.net_if_addrs()
+        stats = psutil.net_if_stats()
+        interface_list = []
+        
+        for i, (interface_name, addresses) in enumerate(interfaces.items(), 1):
+            interface_info = {
+                "snort_number": str(i),
+                "name": interface_name,
+                "is_up": stats.get(interface_name, {}).isup if interface_name in stats else False,
+                "addresses": []
+            }
+            
+            for addr in addresses:
+                if addr.family.name == 'AF_INET':
+                    interface_info["addresses"].append({
+                        "ip": addr.address,
+                        "netmask": addr.netmask
+                    })
+            
+            interface_list.append(interface_info)
+        
+        return interface_list
+        
+    except Exception as e:
+        print(f"Error listing interfaces: {e}")
+        return []
+
+    def ensure_log_directory(self):
+        """Ensure log directory exists"""
+        log_dir = os.path.dirname(self.log_file_path)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True)
+    
+    def test_snort_config(self):
+        """Test Snort configuration before starting"""
+        try:
+            cmd = [
+                self.snort_executable,
+                "-T",  # Test configuration
+                "-c", self.snort_config_path
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                return {"status": "success", "message": "Configuration test passed"}
+            else:
+                return {
+                    "status": "error", 
+                    "message": f"Configuration test failed: {result.stderr}",
+                    "stdout": result.stdout
+                }
+        except subprocess.TimeoutExpired:
+            return {"status": "error", "message": "Configuration test timed out"}
+        except Exception as e:
+            return {"status": "error", "message": f"Configuration test error: {str(e)}"}
+    
+    def start_snort(self):
+        """Start Snort IDS process with better error handling"""
+        if self.is_running:
+            return {"status": "already_running", "message": "Snort is already running"}
+        
+        # Test configuration first
+        config_test = self.test_snort_config()
+        if config_test["status"] != "success":
+            return config_test
+        
+        try:
+            # Ensure log directory exists
+            self.ensure_log_directory()
+            
+            # Create a simple test rule first
+            self.create_test_rule()
+            
+            # Snort command for IDS mode - simplified for Windows
+            cmd = [
+                self.snort_executable,
+                "-A", "fast",  # Fast alert mode
+                "-c", self.snort_config_path,  # Configuration file
+                "-i", self.interface,  # Network interface
+                "-l", r"C:\Snort\log",  # Log directory
+                "-v" , # Verbose mode instead of quiet (-q)
+                "-k", "none" # Disable checksum verification
+
+            ]
+
+            # Change the subprocess creation to show window for debugging
+            self.snort_process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                # Remove CREATE_NO_WINDOW to see the console
+                # creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0,
+                cwd=r"C:\Snort\bin"
+            )
+
+            
+            # Wait a moment to see if it starts successfully
+            time.sleep(3)
+            
+            # Check if process is still running
+            if self.snort_process.poll() is not None:
+                # Process has already terminated
+                stdout, stderr = self.snort_process.communicate()
+                return {
+                    "status": "error",
+                    "message": f"Snort failed to start. Error: {stderr.decode() if stderr else 'Unknown error'}",
+                    "stdout": stdout.decode() if stdout else "",
+                    "stderr": stderr.decode() if stderr else ""
+                }
+            
+            self.is_running = True
+            
+            # Start log monitoring thread
+            log_thread = threading.Thread(target=self.monitor_log_file, daemon=True)
+            log_thread.start()
+            
+            # Start process monitoring thread
+            monitor_thread = threading.Thread(target=self.monitor_process, daemon=True)
+            monitor_thread.start()
+            
+            return {
+                "status": "started", 
+                "message": f"Snort started successfully on interface {self.interface}",
+                "pid": self.snort_process.pid
+            }
+            
+        except FileNotFoundError:
+            return {
+                "status": "error", 
+                "message": f"Snort executable not found at {self.snort_executable}. Please ensure Snort is installed."
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to start Snort: {str(e)}"}
+    
+    def create_test_rule(self):
+        """Create a simple test rule to ensure Snort is working"""
+        test_rules_path = r"C:\Snort\rules\test.rules"
+        
+        # Ensure rules directory exists
+        os.makedirs(os.path.dirname(test_rules_path), exist_ok=True)
+        
+        test_rules = """
+# Test Rules for Basic Functionality
+alert icmp any any -> any any (msg:"ICMP Test Rule"; sid:1000000; rev:1;)
+
+# Nmap Detection Rules
+alert tcp any any -> $HOME_NET any (msg:"NMAP TCP SYN Scan Detected"; flags:S; threshold:type both, track by_src, count 5, seconds 10; classtype:attempted-recon; sid:1000001; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"NMAP TCP Connect Scan"; flags:S; threshold:type both, track by_src, count 10, seconds 30; classtype:attempted-recon; sid:1000002; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"NMAP TCP FIN Scan"; flags:F; threshold:type both, track by_src, count 5, seconds 10; classtype:attempted-recon; sid:1000003; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"NMAP XMAS Tree Scan"; flags:FPU; threshold:type both, track by_src, count 3, seconds 10; classtype:attempted-recon; sid:1000004; rev:1;)
+alert tcp any any -> $HOME_NET any (msg:"NMAP NULL Scan"; flags:0; threshold:type both, track by_src, count 3, seconds 10; classtype:attempted-recon; sid:1000005; rev:1;)
+alert udp any any -> $HOME_NET any (msg:"NMAP UDP Scan Detected"; threshold:type both, track by_src, count 10, seconds 30; classtype:attempted-recon; sid:1000009; rev:1;)
+alert icmp any any -> $HOME_NET any (msg:"NMAP Ping Sweep Detected"; itype:8; dsize:0; threshold:type both, track by_src, count 5, seconds 10; classtype:attempted-recon; sid:1000010; rev:1;)
+"""
+        
+        try:
+            with open(test_rules_path, 'w') as f:
+                f.write(test_rules)
+            print(f"Created test rules at {test_rules_path}")
+        except Exception as e:
+            print(f"Error creating test rules: {e}")
+    
+    def monitor_process(self):
+        """Monitor Snort process for unexpected termination"""
+        while self.is_running and self.snort_process:
+            try:
+                # Check if process is still alive
+                if self.snort_process.poll() is not None:
+                    # Process has terminated
+                    stdout, stderr = self.snort_process.communicate()
+                    error_info = {
+                        "timestamp": datetime.now().isoformat(),
+                        "message": "Snort process terminated unexpectedly",
+                        "stdout": stdout.decode() if stdout else "",
+                        "stderr": stderr.decode() if stderr else "",
+                        "return_code": self.snort_process.returncode
+                    }
+                    self.snort_errors.append(error_info)
+                    self.is_running = False
+                    break
+                
+                time.sleep(5)  # Check every 5 seconds
+            except Exception as e:
+                print(f"Error monitoring process: {e}")
+                break
+    
+    def stop_snort(self):
+        """Stop Snort IDS process"""
+        if not self.is_running or not self.snort_process:
+            return {"status": "not_running", "message": "Snort is not running"}
+        
+        try:
+            self.snort_process.terminate()
+            self.snort_process.wait(timeout=10)
+            self.is_running = False
+            self.snort_process = None
+            return {"status": "stopped", "message": "Snort stopped successfully"}
+        except subprocess.TimeoutExpired:
+            self.snort_process.kill()
+            self.is_running = False
+            self.snort_process = None
+            return {"status": "killed", "message": "Snort force stopped"}
+        except Exception as e:
+            return {"status": "error", "message": f"Error stopping Snort: {str(e)}"}
+    
+    def get_status(self):
+        """Get current Snort status with error information"""
+        status_info = {
+            "status": "stopped",
+            "alerts_count": len(self.alerts),
+            "errors": self.snort_errors[-5:] if self.snort_errors else []  # Last 5 errors
+        }
+        
+        if self.is_running and self.snort_process:
+            try:
+                if self.snort_process.poll() is None:
+                    status_info.update({
+                        "status": "running",
+                        "pid": self.snort_process.pid,
+                        "interface": self.interface
+                    })
+                else:
+                    self.is_running = False
+                    self.snort_process = None
+                    status_info["status"] = "stopped"
+                    status_info["message"] = "Snort process terminated"
+            except:
+                self.is_running = False
+                self.snort_process = None
+                status_info["status"] = "error"
+                status_info["message"] = "Error checking Snort status"
+        
+        return status_info
+    
+    def determine_nmap_severity(self, message, priority):
+        """Determine severity based on message content and priority"""
+        message_lower = message.lower()
+        
+        if any(keyword in message_lower for keyword in ['xmas', 'null', 'stealth', 'aggressive', 'os fingerprinting']):
+            return "High"
+        elif any(keyword in message_lower for keyword in ['syn scan', 'connect scan', 'version detection']):
+            return "Medium"
+        elif 'ping sweep' in message_lower or 'udp scan' in message_lower:
+            return "Low"
+        elif 'aggressive' in message_lower or 'rapid' in message_lower:
+            return "Critical"
+        
+        if priority and priority.isdigit():
+            priority_num = int(priority)
+            if priority_num <= 1:
+                return "Critical"
+            elif priority_num <= 2:
+                return "High"
+            elif priority_num <= 3:
+                return "Medium"
+        
+        return "Low"
+
+    def is_nmap_related(self, message):
+        """Check if the alert is related to Nmap scanning"""
+        nmap_keywords = [
+            'nmap', 'scan', 'sweep', 'probe', 'reconnaissance', 'recon',
+            'syn scan', 'fin scan', 'xmas', 'null scan', 'ack scan',
+            'ping sweep', 'port scan', 'stealth scan', 'connect scan',
+            'version detection', 'os fingerprinting', 'udp scan'
+        ]
+        
+        message_lower = message.lower()
+        return any(keyword in message_lower for keyword in nmap_keywords)
+
+    def identify_scan_type(self, message):
+        """Identify the type of Nmap scan based on the message"""
+        message_lower = message.lower()
+        
+        scan_types = {
+            'syn': ['syn scan', 'syn probe'],
+            'connect': ['connect scan', 'tcp connect'],
+            'fin': ['fin scan'],
+            'xmas': ['xmas', 'christmas'],
+            'null': ['null scan'],
+            'ack': ['ack scan'],
+            'window': ['window scan'],
+            'maimon': ['maimon scan'],
+            'udp': ['udp scan'],
+            'ping_sweep': ['ping sweep', 'icmp sweep'],
+            'version': ['version detection', 'version scan'],
+            'os_detection': ['os fingerprint', 'os detection'],
+            'aggressive': ['aggressive scan'],
+            'stealth': ['stealth scan']
+        }
+        
+        for scan_type, keywords in scan_types.items():
+            if any(keyword in message_lower for keyword in keywords):
+                return scan_type
+        
+        return 'unknown'
+    
+    def parse_alert_line(self, line):
+        """Parse Snort alert log line"""
+        try:
+            # Standard fast alert format
+            pattern = r'(\d{2}/\d{2}-\d{2}:\d{2}:\d{2}\.\d+)\s+\[\*\*\]\s+\[(\d+:\d+:\d+)\]\s+(.+?)\s+\[\*\*\]\s+.*?\{([^}]+)\}\s+(\S+)\s*->\s*(\S+)'
+            
+            match = re.match(pattern, line.strip())
+            if match:
+                timestamp_str, gid_sid_rev, message, protocol, src, dst = match.groups()
+                
+                # Parse timestamp
+                current_year = datetime.now().year
+                timestamp = datetime.strptime(f"{current_year}/{timestamp_str}", "%Y/%m/%d-%H:%M:%S.%f")
+                
+                # Enhanced severity determination
+                severity = self.determine_nmap_severity(message, None)
+                is_nmap_scan = self.is_nmap_related(message)
+                
+                return {
+                    "id": len(self.alerts) + 1,
+                    "timestamp": timestamp.isoformat(),
+                    "message": message.strip(),
+                    "severity": severity,
+                    "priority": "Unknown",
+                    "classification": "attempted-recon",
+                    "protocol": protocol,
+                    "source": src,
+                    "destination": dst,
+                    "gid_sid_rev": gid_sid_rev,
+                    "is_nmap_scan": is_nmap_scan,
+                    "scan_type": self.identify_scan_type(message) if is_nmap_scan else None,
+                    "raw_log": line.strip()
+                }
+        except Exception as e:
+            print(f"Error parsing alert line: {e}")
+            return None
+    
+    def monitor_log_file(self):
+        """Monitor Snort log file with enhanced debugging"""
+        print(f"Starting to monitor log file: {self.log_file_path}")
+        
+        # Check if log file exists every second for 60 seconds
+        wait_count = 0
+        while self.is_running and not os.path.exists(self.log_file_path) and wait_count < 60:
+            print(f"Waiting for log file... {wait_count}/60")
+            time.sleep(1)
+            wait_count += 1
+        
+        if not os.path.exists(self.log_file_path):
+            print(f"LOG FILE NOT CREATED: {self.log_file_path}")
+            # Try alternative log file locations
+            alt_paths = [
+                r"C:\Snort\log\snort.alert.ids",
+                r"C:\Snort\bin\alert.ids",
+                r"C:\Snort\bin\snort.alert.ids"
+            ]
+            
+            for alt_path in alt_paths:
+                if os.path.exists(alt_path):
+                    print(f"Found alternative log file: {alt_path}")
+                    self.log_file_path = alt_path
+                    break
+        
+        if not os.path.exists(self.log_file_path):
+            print("No log file found - alerts may not be captured")
+            return
+        
+        try:
+            with open(self.log_file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                # Start from beginning to catch any existing alerts
+                while self.is_running:
+                    line = f.readline()
+                    if line:
+                        print(f"Raw log line: {line.strip()}")  # Debug output
+                        alert = self.parse_alert_line(line)
+                        if alert:
+                            self.alerts.append(alert)
+                            if len(self.alerts) > self.max_alerts:
+                                self.alerts = self.alerts[-self.max_alerts:]
+                            print(f"PARSED ALERT: {alert['message']}")
+                        else:
+                            print("Failed to parse line")
+                    else:
+                        time.sleep(0.1)
+        except Exception as e:
+            print(f"Error monitoring log file: {e}")
+
+
+    
+    def get_alerts(self):
+        """Get all alerts"""
+        return self.alerts
+    
+    def clear_alerts(self):
+        """Clear all stored alerts"""
+        self.alerts = []
+        self.snort_errors = []
+        return {"status": "success", "message": "Alerts and errors cleared"}
+    def debug_snort_traffic(self):
+        """Debug method to check if Snort is seeing traffic"""
+        try:
+            # Run Snort in verbose mode to see traffic
+            debug_cmd = [
+                self.snort_executable,
+                "-v",  # Verbose
+                "-i", self.interface,
+                "-c", self.snort_config_path
+            ]
+            
+            print("Running Snort in debug mode...")
+            print(f"Command: {' '.join(debug_cmd)}")
+            
+            # Run for 30 seconds then stop
+            debug_process = subprocess.Popen(
+                debug_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=r"C:\Snort\bin"
+            )
+            
+            # Wait 30 seconds
+            time.sleep(30)
+            debug_process.terminate()
+            
+            stdout, stderr = debug_process.communicate()
+            
+            return {
+                "stdout": stdout.decode(),
+                "stderr": stderr.decode(),
+                "message": "Debug run completed"
+            }
+            
+        except Exception as e:
+            return {"error": str(e)}
+
+
+# Global Snort manager instance
+snort_manager = SnortManager()
+
+# API Routes
+@app.route('/snort/start', methods=['POST'])
+def start_snort():
+    result = snort_manager.start_snort()
+    return jsonify(result)
+
+@app.route('/snort/stop', methods=['POST'])
+def stop_snort():
+    result = snort_manager.stop_snort()
+    return jsonify(result)
+
+@app.route('/snort/status', methods=['GET'])
+def get_snort_status():
+    result = snort_manager.get_status()
+    return jsonify(result)
+
+@app.route('/snort/alerts', methods=['GET'])
+def get_snort_alerts():
+    alerts = snort_manager.get_alerts()
+    return jsonify(alerts)
+
+@app.route('/snort/alerts/clear', methods=['DELETE'])
+def clear_snort_alerts():
+    result = snort_manager.clear_snort_alerts()
+    return jsonify(result)
+
+@app.route('/snort/config/test', methods=['GET'])
+def test_snort_config():
+    result = snort_manager.test_snort_config()
+    return jsonify(result)
+
+@app.route('/snort/debug', methods=['POST'])
+def debug_snort():
+    result = snort_manager.debug_snort_traffic()
+    return jsonify(result)
+
+if __name__ == '__main__':
+    print("Starting Snort Backend Server...")
+    print(f"Snort executable: {snort_manager.snort_executable}")
+    print(f"Config file: {snort_manager.snort_config_path}")
+    print(f"Log file: {snort_manager.log_file_path}")
+    print(f"Interface: {snort_manager.interface}")
+    
+    app.run(host='127.0.0.1', port=5001, debug=True, threaded=True)

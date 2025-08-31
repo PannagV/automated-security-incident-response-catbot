@@ -248,7 +248,32 @@ const SnortIDS = () => {
                         </div>
                     </div>
                 </div>
-
+                // Add error display section
+                {snortStatus.errors && snortStatus.errors.length > 0 && (
+                    <div className="col-12 mb-4">
+                        <div className="card border-danger">
+                            <div className="card-header bg-danger text-white">
+                                <h5 className="mb-0">
+                                    <i className="bi bi-exclamation-triangle me-2"></i>
+                                    Snort Errors
+                                </h5>
+                            </div>
+                            <div className="card-body">
+                                {snortStatus.errors.map((error, index) => (
+                                    <div key={index} className="alert alert-danger mb-2">
+                                        <strong>Time:</strong> {new Date(error.timestamp).toLocaleString()}<br/>
+                                        <strong>Message:</strong> {error.message}<br/>
+                                        {error.stderr && (
+                                            <>
+                                                <strong>Error:</strong> <pre className="mt-2">{error.stderr}</pre>
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {/* Statistics */}
                 <div className="col-12 mb-4">
                     <div className="card">
@@ -389,6 +414,7 @@ const SnortIDS = () => {
                 </div>
             </div>
         </div>
+        
     );
 };
 
