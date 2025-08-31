@@ -54,12 +54,24 @@ const Navbar = ({ activeTab, setActiveTab, alertCount }) => {
           <i className="bi bi-graph-up me-2"></i>Dashboard
         </button>
         
-        <Link 
-          to="/threat-intelligence" 
-          className="nav-link me-2"
+                <Link 
+            to="/snort-ids"
+            className={`nav-link ${activeTab === 'snort' ? 'active' : ''}`}
+            onClick={() => setActiveTab('snort')}
         >
-          <i className="bi bi-shield-shaded me-2"></i>Threat Intel
+            <i className="bi bi-shield-check me-2"></i>
+            Snort IDS
         </Link>
+
+        <Link 
+            to="/threat-intel" 
+            className={`nav-link ${activeTab === 'threat-intel' ? 'active' : ''}`}
+            onClick={() => setActiveTab('threat-intel')}
+        >
+            <i className="bi bi-globe me-2"></i>
+            Threat Intel
+        </Link>
+
         
         <Link        
           to="/reports" 
@@ -68,7 +80,6 @@ const Navbar = ({ activeTab, setActiveTab, alertCount }) => {
           <i className="bi bi-file-earmark-text me-2"></i>Reports
         </Link>
       </div>
-      
       {/* Right Controls */}
       <div className="d-flex align-items-center">
         {/* Dark Mode Toggle */}
