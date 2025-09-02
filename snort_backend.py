@@ -78,22 +78,28 @@ class SnortManager:
             return None
 
     def _get_primary_interface(self):
-        """Get the primary interface by checking default route"""
+        """Get the primary interface by checking Snort's interface list"""
         try:
             import socket
             
-            # Connect to a remote address to determine which interface is used
+            # Get our primary IP address
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                # Connect to Google DNS (doesn't actually send data)
                 s.connect(("8.8.8.8", 80))
                 local_ip = s.getsockname()[0]
             
-            # Find which interface has this IP
+            print(f"Primary IP address: {local_ip}")
+            
+            # Get Snort's interface list to find the correct interface number
+            snort_interface = self._get_snort_interface_by_ip(local_ip)
+            if snort_interface:
+                print(f"Found Snort interface {snort_interface} for IP {local_ip}")
+                return snort_interface
+            
+            # Fallback to old method
             interfaces = psutil.net_if_addrs()
             for interface_name, addresses in interfaces.items():
                 for addr in addresses:
                     if addr.family.name == 'AF_INET' and addr.address == local_ip:
-                        # Convert interface name to Snort interface number
                         return self._get_snort_interface_number(interface_name)
             
             return None
@@ -131,6 +137,35 @@ class SnortManager:
         except Exception as e:
             print(f"Error getting active interfaces: {e}")
             return []
+
+    def _get_snort_interface_by_ip(self, target_ip):
+        """Get Snort interface number by querying Snort directly for interface with specific IP"""
+        try:
+            result = subprocess.run(
+                [self.snort_executable, "-W"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                lines = result.stdout.split('\n')
+                for line in lines:
+                    if target_ip in line and 'Index' not in line and '-----' not in line:
+                        # Parse line format: "    4   94:BB:43:C1:AC:42       192.168.31.12   \Device\NPF_..."
+                        parts = line.strip().split()
+                        if len(parts) >= 3:
+                            interface_num = parts[0]
+                            interface_ip = parts[2]
+                            if interface_ip == target_ip:
+                                print(f"Found interface {interface_num} with IP {interface_ip}")
+                                return interface_num
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error querying Snort interfaces: {e}")
+            return None
 
     def _get_snort_interface_number(self, interface_name):
         """Convert Windows interface name to Snort interface number"""
@@ -181,6 +216,14 @@ class SnortManager:
             return []
 
     
+    def is_admin(self):
+        """Check if running with administrator privileges"""
+        try:
+            import ctypes
+            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except:
+            return False
+
     def ensure_log_directory(self):
         """Ensure log directory exists"""
         log_dir = os.path.dirname(self.log_file_path)
@@ -216,12 +259,24 @@ class SnortManager:
         if self.is_running:
             return {"status": "already_running", "message": "Snort is already running"}
         
+        # Check administrator privileges
+        if not self.is_admin():
+            return {
+                "status": "error", 
+                "message": "Snort requires Administrator privileges for packet capture. Please run as Administrator."
+            }
+        
         try:
             # Ensure log directory exists
             self.ensure_log_directory()
             
-            # Create test rules
-            #self.create_test_rule()
+            # Re-detect the correct interface
+            correct_interface = self._get_primary_interface()
+            if correct_interface:
+                self.interface = correct_interface
+                print(f"Using interface: {self.interface}")
+            else:
+                print(f"Warning: Could not detect interface, using default: {self.interface}")
             
             # Remove any existing log files
             if os.path.exists(self.log_file_path):
@@ -695,6 +750,15 @@ class SnortManager:
 snort_manager = SnortManager()
 
 # API Routes
+@app.route('/snort/admin/check', methods=['GET'])
+def check_admin_status():
+    """Check if running with administrator privileges"""
+    is_admin = snort_manager.is_admin()
+    return jsonify({
+        "is_admin": is_admin,
+        "message": "Running as Administrator" if is_admin else "Not running as Administrator - packet capture may fail"
+    })
+
 @app.route('/snort/start', methods=['POST'])
 def start_snort():
     result = snort_manager.start_snort()
