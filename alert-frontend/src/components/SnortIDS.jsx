@@ -8,6 +8,7 @@ const SnortIDS = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [autoRefresh, setAutoRefresh] = useState(true);
+    const [autoScroll, setAutoScroll] = useState(false); // Auto-scroll disabled by default
     const [filterSeverity, setFilterSeverity] = useState('all');
     const [availableInterfaces, setAvailableInterfaces] = useState([]);
     const [selectedInterface, setSelectedInterface] = useState('');
@@ -49,11 +50,11 @@ const SnortIDS = () => {
         };
         setStats(newStats);
 
-        // Auto-scroll to bottom when new alerts arrive
-        if (alertsEndRef.current && autoRefresh) {
+        // Auto-scroll to bottom when new alerts arrive (only if enabled)
+        if (alertsEndRef.current && autoScroll) {
             alertsEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
-    }, [alerts, autoRefresh]);
+    }, [alerts, autoScroll]);
 
     const fetchSnortStatus = async () => {
         try {
@@ -401,6 +402,19 @@ const SnortIDS = () => {
                                     />
                                     <label className="form-check-label" htmlFor="autoRefresh">
                                         Auto Refresh
+                                    </label>
+                                </div>
+
+                                <div className="form-check form-switch">
+                                    <input 
+                                        className="form-check-input" 
+                                        type="checkbox" 
+                                        id="autoScroll"
+                                        checked={autoScroll}
+                                        onChange={(e) => setAutoScroll(e.target.checked)}
+                                    />
+                                    <label className="form-check-label" htmlFor="autoScroll">
+                                        Auto Scroll
                                     </label>
                                 </div>
 

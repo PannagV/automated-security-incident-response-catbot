@@ -781,7 +781,7 @@ def get_snort_alerts():
 
 @app.route('/snort/alerts/clear', methods=['DELETE'])
 def clear_snort_alerts():
-    result = snort_manager.clear_snort_alerts()
+    result = snort_manager.clear_alerts()
     return jsonify(result)
 
 @app.route('/snort/config/test', methods=['GET'])
