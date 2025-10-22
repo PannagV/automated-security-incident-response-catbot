@@ -16,6 +16,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ReportGenerator from './components/Reports/ReportGenerator';
 import SimpleReportGenerator from './components/Reports/SimpleReportGenerator';
 import ThreatIntelligenceDashboard from './components/ThreatIntelligenceDashboard';
+// Add these imports at the top of App.jsx after existing imports:
+import SnortIDS from './components/SnortIDS';
 
 function App() {
   // Define all state variables
@@ -1155,6 +1157,7 @@ function App() {
             )}
           </div>
         } />
+        <Route path="/snort-ids" element={<SnortIDS />} />
         <Route path="/reports" element={<SimpleReportGenerator />} />
         <Route path="/threat-intelligence" element={<ThreatIntelligenceDashboard />} />
       </Routes>
