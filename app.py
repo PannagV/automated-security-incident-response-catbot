@@ -1622,7 +1622,7 @@ def threat_simulation_worker():
         except Exception as e:
             logger.error(f"Error in threat simulation: {str(e)}")
 
-@app.route('/api/threat-intelligence', methods=['GET'])
+@app.route('/api/threat-intel', methods=['GET'])
 def get_threat_intelligence():
     """Get latest threat intelligence data"""
     try:

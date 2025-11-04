@@ -64,7 +64,7 @@ const Navbar = ({ activeTab, setActiveTab, alertCount }) => {
         </Link>
 
         <Link 
-            to="/threat-intel" 
+            to="/threat-intelligence" 
             className={`nav-link ${activeTab === 'threat-intel' ? 'active' : ''}`}
             onClick={() => setActiveTab('threat-intel')}
         >
