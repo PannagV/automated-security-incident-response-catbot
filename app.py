@@ -496,9 +496,10 @@ class Alert(db.Model):
     jira_ticket_id = db.Column(db.String(50), nullable=True)
     slack_notification_sent = db.Column(db.Boolean, default=False)
     additional_data = db.Column(db.JSON, nullable=True)  # Add this column for impact, reasoning, etc.
+    source = db.Column(db.String(50), default='manual', nullable=True)  # Track alert source (manual, snort_ids, api, etc.)
     
     def __repr__(self):
-        return f"<Alert id={self.id}, severity={self.severity}>"
+        return f"<Alert id={self.id}, severity={self.severity}, source={self.source}>"
 
 # Define the priority mapping as a proper variable
 PRIORITY_MAPPING = {
@@ -760,7 +761,8 @@ def process_alert():
 
         # Get classification method from request
         classification_method = data.get('classification_method', 'model')  # Default to model
-        logger.info(f"Processing alert using {classification_method} method: {alert_message}")
+        alert_source = data.get('source', 'manual')  # Get source, default to 'manual'
+        logger.info(f"Processing alert from {alert_source} using {classification_method} method: {alert_message}")
 
         impact = None
         reasoning = None
@@ -897,7 +899,8 @@ def process_alert():
                 recommendations=recommendations,
                 jira_ticket_id=ticket_key,
                 slack_notification_sent=slack_success,
-                additional_data=additional_data  # Store the additional data
+                additional_data=additional_data,  # Store the additional data
+                source=alert_source  # Store the source
             )
             db.session.add(new_alert)
             db.session.flush()  # Flush without committing to get ID

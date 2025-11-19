@@ -8,6 +8,7 @@ from datetime import datetime
 from flask import Flask, jsonify
 from flask_cors import CORS
 import psutil
+import requests
 
 app = Flask(__name__)
 CORS(app)
@@ -24,6 +25,8 @@ class SnortManager:
         self.max_alerts = 1000
         self.snort_errors = []
         self.debug_mode = False
+        self.main_app_url = "http://localhost:5000"  # Main app URL for integration
+        self.processed_alert_ids = set()  # Track processed alerts to avoid duplicates
     def get_default_interface(self):
         """Get the primary active network interface for Snort on Windows"""
         try:
@@ -617,6 +620,67 @@ class SnortManager:
             print(f"Error parsing alert line: {e}")
             return None
     
+    def create_ticket_for_alert(self, alert):
+        """Create Jira ticket and send Slack notification for High/Critical alerts"""
+        try:
+            # Only process High and Critical alerts
+            if alert['severity'] not in ['High', 'Critical']:
+                return None
+            
+            # Generate unique alert ID to avoid duplicates
+            alert_id = f"{alert['timestamp']}_{alert['message']}_{alert['source']}"
+            
+            # Check if we've already processed this alert
+            if alert_id in self.processed_alert_ids:
+                print(f"Alert already processed, skipping: {alert['message'][:50]}")
+                return None
+            
+            # Mark as processed
+            self.processed_alert_ids.add(alert_id)
+            
+            # Prepare alert message for ticket
+            alert_message = f"Snort IDS Alert: {alert['message']}\n" \
+                          f"Source: {alert['source']} → Destination: {alert['destination']}\n" \
+                          f"Protocol: {alert['protocol']}\n" \
+                          f"Severity: {alert['severity']}"
+            
+            if alert.get('is_nmap_scan'):
+                alert_message += f"\nScan Type: {alert.get('scan_type', 'Unknown')}"
+            
+            # Send to main app for ticket creation
+            print(f"Creating ticket for {alert['severity']} alert: {alert['message'][:50]}...")
+            
+            response = requests.post(
+                f"{self.main_app_url}/process_alert",
+                json={
+                    "message": alert_message,
+                    "classification_method": "model",  # Use ML model for classification
+                    "source": "snort_ids"
+                },
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f"✓ Ticket created successfully: {result.get('jira_ticket_id', 'N/A')}")
+                
+                # Add ticket info to alert
+                alert['jira_ticket_id'] = result.get('jira_ticket_id')
+                alert['slack_sent'] = result.get('slack_success', False)
+                alert['auto_ticketed'] = True
+                
+                return result
+            else:
+                print(f"✗ Failed to create ticket: {response.status_code} - {response.text}")
+                return None
+                
+        except requests.exceptions.RequestException as e:
+            print(f"✗ Error connecting to main app: {e}")
+            return None
+        except Exception as e:
+            print(f"✗ Error creating ticket for alert: {e}")
+            return None
+    
     def monitor_log_file(self):
         """Enhanced log file monitoring with debugging"""
         print(f"Starting to monitor log file: {self.log_file_path}")
@@ -668,7 +732,16 @@ class SnortManager:
                             self.alerts.append(alert)
                             if len(self.alerts) > self.max_alerts:
                                 self.alerts = self.alerts[-self.max_alerts:]
-                            print(f"PARSED ALERT: {alert['message']}")
+                            print(f"PARSED ALERT: {alert['message']} | Severity: {alert['severity']}")
+                            
+                            # Auto-create ticket for High and Critical alerts
+                            if alert['severity'] in ['High', 'Critical']:
+                                print(f"🎫 Auto-creating ticket for {alert['severity']} severity alert...")
+                                ticket_result = self.create_ticket_for_alert(alert)
+                                if ticket_result:
+                                    print(f"✓ Ticket creation successful")
+                                else:
+                                    print(f"✗ Ticket creation failed or skipped")
                         else:
                             print("FAILED TO PARSE ALERT LINE")
                     else:
@@ -685,6 +758,7 @@ class SnortManager:
         """Clear all stored alerts"""
         self.alerts = []
         self.snort_errors = []
+        self.processed_alert_ids.clear()  # Clear processed alerts tracking
         return {"status": "success", "message": "Alerts and errors cleared"}
     def debug_snort_traffic(self):
         """Debug method to check if Snort is seeing traffic"""
@@ -741,7 +815,16 @@ class SnortManager:
                         self.alerts.append(alert)
                         if len(self.alerts) > self.max_alerts:
                             self.alerts = self.alerts[-self.max_alerts:]
-                        print(f"CAPTURED ALERT: {alert['message']}")
+                        print(f"CAPTURED ALERT: {alert['message']} | Severity: {alert['severity']}")
+                        
+                        # Auto-create ticket for High and Critical alerts
+                        if alert['severity'] in ['High', 'Critical']:
+                            print(f"🎫 Auto-creating ticket for {alert['severity']} severity alert...")
+                            ticket_result = self.create_ticket_for_alert(alert)
+                            if ticket_result:
+                                print(f"✓ Ticket creation successful")
+                            else:
+                                print(f"✗ Ticket creation failed or skipped")
         except Exception as e:
             print(f"Error monitoring console output: {e}")
 
@@ -827,6 +910,16 @@ def start_snort_background():
     result = snort_manager.start_snort(debug_mode=False)
     return jsonify(result)
 
+@app.route('/snort/auto-ticket/status', methods=['GET'])
+def get_auto_ticket_status():
+    """Get auto-ticketing statistics"""
+    return jsonify({
+        "status": "enabled",
+        "total_processed": len(snort_manager.processed_alert_ids),
+        "main_app_url": snort_manager.main_app_url,
+        "message": "Auto-ticketing is enabled for High and Critical alerts"
+    })
+
 
 if __name__ == '__main__':
     print("Starting Snort Backend Server...")
@@ -834,5 +927,11 @@ if __name__ == '__main__':
     print(f"Config file: {snort_manager.snort_config_path}")
     print(f"Log file: {snort_manager.log_file_path}")
     print(f"Interface: {snort_manager.interface}")
+    print("=" * 60)
+    print("🎫 AUTO-TICKETING ENABLED")
+    print("High and Critical Snort alerts will automatically create:")
+    print("  ✓ Jira tickets")
+    print("  ✓ Slack notifications")
+    print("=" * 60)
     
     app.run(host='127.0.0.1', port=5001, debug=True, threaded=True)
