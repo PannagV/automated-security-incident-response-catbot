@@ -18,7 +18,7 @@ class SnortManager:
         self.snort_process = None
         self.is_running = False
         self.log_file_path = r"C:\Snort\log\alert.ids"
-        self.snort_config_path = r"C:\Snort\etc\snort_minimal.conf"
+        self.snort_config_path = r"C:\Snort\etc\snort_production.conf"  # Use production config
         self.snort_executable = r"C:\Snort\bin\snort.exe"
         self.interface = self.get_default_interface()
         self.alerts = []

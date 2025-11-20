@@ -1,0 +1,210 @@
+###############################################################################
+# PRODUCTION THREAT DETECTION RULES
+# Real-world IDS rules for actual security threats
+# Last Updated: November 2025
+###############################################################################
+
+###############################################################################
+# 1. MALWARE & EXPLOIT DETECTION
+###############################################################################
+
+# Wannacry Ransomware Detection
+alert tcp any any -> $HOME_NET 445 (msg:"MALWARE Wannacry Ransomware SMB Exploit Attempt"; flow:to_server,established; content:"|FF|SMB"; offset:4; depth:5; content:"|00 00 00|"; distance:9; within:3; content:"|00 00|"; distance:4; within:2; pcre:"/(\x00.{2}\x00.{2}\x00.{2}\x00.{2}\x00){4}/"; classtype:attempted-admin; sid:3000001; rev:1; priority:1;)
+
+# EternalBlue Exploit (MS17-010)
+alert tcp any any -> $HOME_NET 445 (msg:"EXPLOIT EternalBlue MS17-010 SMB Exploit"; flow:to_server,established; content:"|FF|SMB|72|"; depth:5; offset:4; content:"|00 00 00 00|"; distance:0; content:"|00 00 00 00|"; distance:0; pcre:"/\x00\x00\x00\x00.{100}/"; classtype:attempted-admin; sid:3000002; rev:1; priority:1;)
+
+# Emotet Malware C2 Communication
+alert tcp $HOME_NET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"MALWARE Emotet C2 Communication"; flow:to_server,established; content:"POST"; http_method; content:"/"; http_uri; depth:1; pcre:"/^\/\w{1,10}$/Ui"; content:"Content-Type|3a 20|application/x-www-form-urlencoded"; http_header; classtype:trojan-activity; sid:3000003; rev:1; priority:1;)
+
+# Cobalt Strike Beacon
+alert tcp $HOME_NET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"MALWARE Cobalt Strike Beacon Activity"; flow:to_server,established; content:"GET"; http_method; content:".gif"; http_uri; content:"Cookie|3a|"; http_header; pcre:"/Cookie\x3a.{100,}/H"; classtype:trojan-activity; sid:3000004; rev:1; priority:1;)
+
+# Trickbot Banking Trojan
+alert tcp $HOME_NET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"MALWARE Trickbot Banking Trojan"; flow:to_server,established; content:"POST"; http_method; content:"/"; http_uri; content:"proclist="; http_client_body; classtype:trojan-activity; sid:3000005; rev:1; priority:1;)
+
+# Metasploit Meterpreter Reverse Shell
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"EXPLOIT Metasploit Meterpreter Reverse Shell"; flow:to_server,established; content:"core_loadlib"; fast_pattern; content:"metsrv.dll"; distance:0; classtype:trojan-activity; sid:3000006; rev:1; priority:1;)
+
+###############################################################################
+# 2. SQL INJECTION ATTACKS
+###############################################################################
+
+# SQL Injection - UNION SELECT
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK SQL Injection UNION SELECT Attempt"; flow:to_server,established; content:"GET"; http_method; pcre:"/union.{0,100}select/Ui"; classtype:web-application-attack; sid:3000010; rev:1; priority:2;)
+
+# SQL Injection - OR 1=1
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK SQL Injection OR 1=1 Attempt"; flow:to_server,established; content:"GET"; http_method; pcre:"/(or|and).{0,10}1\s*=\s*1/Ui"; classtype:web-application-attack; sid:3000011; rev:1; priority:2;)
+
+# SQL Injection - Comment Injection
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK SQL Injection Comment Bypass"; flow:to_server,established; content:"GET"; http_method; pcre:"/(-{2}|\/\*|\*\/)/U"; content:"|27|"; http_uri; classtype:web-application-attack; sid:3000012; rev:1; priority:2;)
+
+# SQL Injection - Information Schema Access
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK SQL Injection Information Schema Access"; flow:to_server,established; content:"GET"; http_method; pcre:"/information_schema/Ui"; classtype:web-application-attack; sid:3000013; rev:1; priority:2;)
+
+###############################################################################
+# 3. COMMAND INJECTION & RCE
+###############################################################################
+
+# Remote Code Execution - PHP System Commands
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK PHP Remote Code Execution Attempt"; flow:to_server,established; content:"GET"; http_method; pcre:"/(system|exec|shell_exec|passthru|popen)\s*\(/Ui"; classtype:web-application-attack; sid:3000020; rev:1; priority:1;)
+
+# Command Injection - Unix Commands
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK OS Command Injection - Unix"; flow:to_server,established; content:"GET"; http_method; content:"cat"; nocase; http_uri; classtype:web-application-attack; sid:3000021; rev:1; priority:1;)
+
+# Command Injection - Windows Commands  
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK OS Command Injection - Windows"; flow:to_server,established; content:"GET"; http_method; content:"cmd"; nocase; http_uri; classtype:web-application-attack; sid:3000022; rev:1; priority:1;)
+
+# Log4Shell (CVE-2021-44228)
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"EXPLOIT Log4Shell Remote Code Execution Attempt"; flow:to_server,established; content:"${jndi"; nocase; fast_pattern; pcre:"/(j|J)(n|N)(d|D)(i|I)/"; classtype:attempted-admin; sid:3000023; rev:1; priority:1;)
+
+###############################################################################
+# 4. DIRECTORY TRAVERSAL & FILE INCLUSION
+###############################################################################
+
+# Directory Traversal Attack
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK Directory Traversal Attempt"; flow:to_server,established; content:"GET"; http_method; pcre:"/\.{2,}(\/|\\)/U"; classtype:web-application-attack; sid:3000030; rev:1; priority:2;)
+
+# Local File Inclusion
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK Local File Inclusion"; flow:to_server,established; content:"GET"; http_method; content:"file="; http_uri; pcre:"/file=(\.{2,}\/|\/etc\/|\/proc\/|C:\\)/Ui"; classtype:web-application-attack; sid:3000031; rev:1; priority:2;)
+
+# Remote File Inclusion
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK Remote File Inclusion"; flow:to_server,established; content:"GET"; http_method; pcre:"/(include|require|page)=http(s)?:\/\//Ui"; classtype:web-application-attack; sid:3000032; rev:1; priority:1;)
+
+###############################################################################
+# 5. CROSS-SITE SCRIPTING (XSS)
+###############################################################################
+
+# XSS - Script Tag Injection
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK XSS Script Tag Injection"; flow:to_server,established; content:"<script"; http_uri; nocase; pcre:"/<script.*>/Ui"; classtype:web-application-attack; sid:3000040; rev:1; priority:3;)
+
+# XSS - Event Handler Injection
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK XSS Event Handler Injection"; flow:to_server,established; pcre:"/on(load|error|click|mouseover)=/Ui"; classtype:web-application-attack; sid:3000041; rev:1; priority:3;)
+
+###############################################################################
+# 6. BRUTE FORCE & AUTHENTICATION ATTACKS
+###############################################################################
+
+# SSH Brute Force Attack
+alert tcp $EXTERNAL_NET any -> $HOME_NET 22 (msg:"SCAN SSH Brute Force Attack Detected"; flow:to_server; flags:S; detection_filter:track by_src, count 20, seconds 60; classtype:attempted-recon; sid:3000050; rev:1; priority:2;)
+
+# RDP Brute Force Attack
+alert tcp $EXTERNAL_NET any -> $HOME_NET 3389 (msg:"SCAN RDP Brute Force Attack"; flow:to_server; flags:S; detection_filter:track by_src, count 10, seconds 60; classtype:attempted-recon; sid:3000051; rev:1; priority:2;)
+
+# HTTP Basic Auth Brute Force
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK HTTP Basic Auth Brute Force"; flow:to_server,established; content:"Authorization|3a 20|Basic"; http_header; detection_filter:track by_src, count 15, seconds 60; classtype:attempted-recon; sid:3000052; rev:1; priority:2;)
+
+# Multiple Failed Login Attempts
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK Multiple Failed Login Attempts"; flow:to_server,established; content:"POST"; http_method; content:"login"; http_uri; nocase; detection_filter:track by_src, count 10, seconds 120; classtype:attempted-recon; sid:3000053; rev:1; priority:2;)
+
+###############################################################################
+# 7. NETWORK RECONNAISSANCE (Refined - Less Noise)
+###############################################################################
+
+# Aggressive Nmap SYN Scan (50+ ports in 60 seconds)
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"SCAN Nmap Aggressive SYN Scan Detected"; flags:S,12; detection_filter:track by_src, count 50, seconds 60; classtype:attempted-recon; sid:3000060; rev:1; priority:3;)
+
+# Nmap XMAS Scan (Highly Suspicious)
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"SCAN Nmap XMAS Scan Detected"; flags:FPU,12; detection_filter:track by_src, count 5, seconds 10; classtype:attempted-recon; sid:3000061; rev:1; priority:2;)
+
+# Nmap NULL Scan (Stealth Technique)
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"SCAN Nmap NULL Scan Detected"; flags:0; detection_filter:track by_src, count 5, seconds 10; classtype:attempted-recon; sid:3000062; rev:1; priority:2;)
+
+# Nmap FIN Scan (Stealth Technique)
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"SCAN Nmap FIN Scan Detected"; flags:F,12; detection_filter:track by_src, count 10, seconds 20; classtype:attempted-recon; sid:3000063; rev:1; priority:2;)
+
+# UDP Port Scan (High Volume)
+alert udp $EXTERNAL_NET any -> $HOME_NET any (msg:"SCAN UDP Port Scan Detected"; detection_filter:track by_src, count 30, seconds 60; classtype:attempted-recon; sid:3000064; rev:1; priority:3;)
+
+# Nessus Vulnerability Scan
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"SCAN Nessus Vulnerability Scanner Detected"; flow:to_server,established; content:"User-Agent|3a|"; http_header; content:"Nessus"; within:20; http_header; classtype:attempted-recon; sid:3000065; rev:1; priority:3;)
+
+###############################################################################
+# 8. DENIAL OF SERVICE ATTACKS
+###############################################################################
+
+# SYN Flood Attack
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"DOS SYN Flood Attack"; flags:S; detection_filter:track by_src, count 100, seconds 10; classtype:attempted-dos; sid:3000070; rev:1; priority:1;)
+
+# ICMP Flood Attack
+alert icmp $EXTERNAL_NET any -> $HOME_NET any (msg:"DOS ICMP Flood Attack"; itype:8; detection_filter:track by_src, count 50, seconds 10; classtype:attempted-dos; sid:3000071; rev:1; priority:2;)
+
+# UDP Flood Attack
+alert udp $EXTERNAL_NET any -> $HOME_NET any (msg:"DOS UDP Flood Attack"; detection_filter:track by_src, count 100, seconds 10; classtype:attempted-dos; sid:3000072; rev:1; priority:2;)
+
+# Slowloris Attack
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"DOS Slowloris Attack Detected"; flow:to_server,established; content:"GET"; http_method; content:"X-"; http_header; detection_filter:track by_src, count 10, seconds 60; classtype:attempted-dos; sid:3000073; rev:1; priority:1;)
+
+###############################################################################
+# 9. DATA EXFILTRATION
+###############################################################################
+
+# Large Data Transfer Outbound
+alert tcp $HOME_NET any -> $EXTERNAL_NET any (msg:"POLICY Suspicious Large Data Transfer"; flow:to_server; dsize:>10000; detection_filter:track by_src, count 50, seconds 60; classtype:policy-violation; sid:3000080; rev:1; priority:2;)
+
+# DNS Tunneling Detection
+alert udp $HOME_NET any -> any 53 (msg:"POLICY DNS Tunneling Suspected"; content:"|01 00 00 01 00 00 00 00 00 00|"; depth:10; offset:2; dsize:>100; classtype:policy-violation; sid:3000081; rev:1; priority:2;)
+
+# Base64 Encoded Data in HTTP (Potential Data Exfiltration)
+alert tcp $HOME_NET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"POLICY Base64 Encoded Data Transfer"; flow:to_server,established; content:"POST"; http_method; pcre:"/\w{100,}/P"; classtype:policy-violation; sid:3000082; rev:1; priority:3;)
+
+###############################################################################
+# 10. BACKDOOR & C2 COMMUNICATION
+###############################################################################
+
+# Netcat Listener Connection
+alert tcp $EXTERNAL_NET any -> $HOME_NET any (msg:"BACKDOOR Netcat Listener Connection"; flow:to_server,established; content:"bash"; fast_pattern; pcre:"/bash.*-i/"; classtype:trojan-activity; sid:3000090; rev:1; priority:1;)
+
+# Suspicious Reverse Shell Connection
+alert tcp $HOME_NET any -> $EXTERNAL_NET [1234,4444,5555,6666,7777,8888,9999] (msg:"BACKDOOR Suspicious Reverse Shell Connection"; flow:to_server; flags:S; classtype:trojan-activity; sid:3000091; rev:1; priority:1;)
+
+# Powershell Download Cradle
+alert tcp $HOME_NET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"BACKDOOR PowerShell Download Cradle"; flow:to_server,established; content:"GET"; http_method; pcre:"/IEX.*\(.*WebClient.*\.DownloadString/i"; classtype:trojan-activity; sid:3000092; rev:1; priority:1;)
+
+###############################################################################
+# 11. SUSPICIOUS PROTOCOL USAGE
+###############################################################################
+
+# Telnet Usage (Unencrypted - Security Risk)
+alert tcp $EXTERNAL_NET any -> $HOME_NET 23 (msg:"POLICY Telnet Connection Attempt - Unencrypted"; flow:to_server; flags:S; classtype:policy-violation; sid:3000100; rev:1; priority:3;)
+
+# FTP Authentication (Plaintext Credentials)
+alert tcp $EXTERNAL_NET any -> $HOME_NET 21 (msg:"POLICY FTP Authentication - Plaintext Credentials"; flow:to_server,established; content:"USER"; content:"PASS"; distance:0; classtype:policy-violation; sid:3000101; rev:1; priority:3;)
+
+# IRC Connection (Potential Botnet C2)
+alert tcp $HOME_NET any -> $EXTERNAL_NET 6667 (msg:"POLICY IRC Connection - Potential Botnet"; flow:to_server; flags:S; classtype:policy-violation; sid:3000102; rev:1; priority:2;)
+
+###############################################################################
+# 12. CRYPTOCURRENCY MINING
+###############################################################################
+
+# Cryptocurrency Mining (Stratum Protocol)
+alert tcp $HOME_NET any -> $EXTERNAL_NET any (msg:"MALWARE Cryptocurrency Mining Activity"; flow:to_server,established; content:"mining.subscribe"; classtype:trojan-activity; sid:3000110; rev:1; priority:2;)
+
+# Monero Mining Detection
+alert tcp $HOME_NET any -> $EXTERNAL_NET [3333,5555,7777,8080,14444,45700] (msg:"MALWARE Monero Cryptocurrency Mining"; flow:to_server; flags:S; classtype:trojan-activity; sid:3000111; rev:1; priority:2;)
+
+###############################################################################
+# 13. WEB SHELLS
+###############################################################################
+
+# PHP Web Shell Upload
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK PHP Web Shell Upload Attempt"; flow:to_server,established; content:"POST"; http_method; content:"Content-Type|3a 20|multipart/form-data"; http_header; content:".php"; http_client_body; pcre:"/\<\?php.*system.*\?\>/Pi"; classtype:web-application-attack; sid:3000120; rev:1; priority:1;)
+
+# Common Web Shell Command Patterns
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (msg:"WEB-ATTACK Web Shell Command Execution"; flow:to_server,established; content:"GET"; http_method; pcre:"/(cmd=|exec=|command=|execute=)/Ui"; classtype:web-application-attack; sid:3000121; rev:1; priority:1;)
+
+###############################################################################
+# 14. LATERAL MOVEMENT
+###############################################################################
+
+# PSExec Lateral Movement
+alert tcp $HOME_NET any -> $HOME_NET 445 (msg:"ATTACK PSExec Lateral Movement"; flow:to_server,established; content:"IPC$"; nocase; content:"PSEXESVC"; distance:0; nocase; classtype:attempted-admin; sid:3000130; rev:1; priority:1;)
+
+# WMI Lateral Movement
+alert tcp $HOME_NET any -> $HOME_NET 135 (msg:"ATTACK WMI Lateral Movement"; flow:to_server,established; content:"|05 00 0b|"; depth:3; content:"|a0 01 00 00 00 00 00 00|"; distance:0; classtype:attempted-admin; sid:3000131; rev:1; priority:1;)
+
+###############################################################################
+# END OF PRODUCTION RULES
+###############################################################################
+
