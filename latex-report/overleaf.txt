@@ -593,45 +593,55 @@ This chapter described the proposed three-tier architecture and how each layer (
 
 \chapter{Hardware and Software Requirements}
 
-
 \section*{Summary}
 \addcontentsline{toc}{section}{Hardware and Software Requirements — Summary}
-This chapter lists recommended hardware specs and a software stack that balance cost with performance for development, testing, and small production deployments. It details OS and runtime recommendations (Linux, Python 3.x), required libraries (Flask, SQLAlchemy, joblib), supporting tools (Nmap, Redis), and optional vulnerability/exploit databases. The requirements ensure reproducible environments, adequate compute for inference and scanning workloads, and compatibility with CI/CD and containerized deployment patterns.
+This chapter details the hardware and software requirements for the Cyberbot - Automated Security Incident Management Chatbot, which consists of a Python/Flask backend (with machine learning, Snort IDS, Gemini AI, Jira/Slack automation, SQLAlchemy ORM) and a React/Material-UI frontend. The requirements ensure smooth development, deployment, and operation for both local and cloud environments.
 
 \section{Hardware Requirements}
 
-For optimal performance of the Cyberbot - Automated Security Incident Management Chatbot, the following hardware specifications are recommended:
+For optimal performance of the Cyberbot system, the following hardware specifications are recommended:
 
 \begin{itemize}
-    \item \textbf{Processor}: A multi-core CPU with at least 4 cores or more is essential. A multi-core processor allows the system to handle multiple concurrent tasks, such as performing scans on multiple targets simultaneously, processing data, and running background processes. This ensures that the scanning process remains smooth and efficient, even when scanning larger networks or performing resource-intensive operations.
-    \item \textbf{Memory}: A minimum of 8 GB RAM is recommended to ensure smooth performance, especially when scanning larger networks or dealing with extensive data. The memory is required for storing intermediate scan results, handling multiple threads, and performing resource-heavy computations such as vulnerability analysis and report generation. If scanning a large number of targets or handling large networks, it may be necessary to have more memory to avoid performance degradation.
-    \item \textbf{Storage}: The system requires at least 10 GB of disk space. This space is necessary for the installation of the vulnerability scanner software and for storing scan reports, logs, and related data. As the scanning process can generate significant amounts of data, especially when scanning a large number of IP addresses or performing deep scans, it is advisable to have more storage available. Additionally, having sufficient storage ensures that the historical scan reports and log files can be retained for future analysis and troubleshooting.
-    \item \textbf{Network}: A stable internet connection is crucial for the proper functioning of the vulnerability scanner. The network connection is needed for domain name resolution, downloading vulnerability definitions, and fetching updates from external sources such as vulnerability and exploit databases. For systems that perform large scans or analyze several targets at once, a high-speed internet connection will improve the speed and efficiency of these processes, especially when downloading scan definitions or interacting with external services.
+    \item \textbf{Processor}: Quad-core CPU or higher (Intel i5/Ryzen 5 or better) to support concurrent backend processing, machine learning inference, and frontend development.
+    \item \textbf{Memory}: Minimum 8 GB RAM (16 GB recommended) to handle Flask server, Snort IDS, ML model loading, and React development server simultaneously.
+    \item \textbf{Storage}: At least 20 GB free disk space for Python/Node.js dependencies, database files, logs, and model artifacts. SSD recommended for faster I/O.
+    \item \textbf{Network}: Reliable broadband internet for API integrations (Gemini, Jira, Slack), package installations, and cloud deployment.
+    \item \textbf{GPU (Optional)}: For advanced ML model training or large-scale inference, a CUDA-capable GPU is beneficial but not required for normal operation.
 \end{itemize}
 
 \section{Software Requirements}
-The following software tools and environments are required for the proper functioning of the Cyberbot - Automated Security Incident Management Chatbot:
+
+The following software stack is required for development and deployment:
 
 \begin{itemize}
-    \item \textbf{Operating System}: The system is optimized for use on a Linux-based operating system, such as Ubuntu 20.04 or later, as it provides robust support for network scanning tools like Nmap, which is a core component of the vulnerability scanning process. Additionally, Linux environments support a wide range of networking tools and libraries needed for performing scans. While the system can be run on Windows 10, some features and tools (such as Nmap) may not be as efficient or fully compatible on Windows. If using Windows, it is recommended to use the Windows Subsystem for Linux (WSL) to run the scanner in a Linux-like environment.
-    
-    \item \textbf{Python}: Python 3.6 or higher is required for executing the vulnerability scanner. Python is the main programming language used to develop the system, providing the necessary libraries and modules for interacting with Nmap, managing multi-threading operations, handling network connections, and generating reports. Python 3.6 or above is required due to compatibility with the latest libraries and features used in the system, ensuring that the code runs efficiently and smoothly. It is also advisable to use a virtual environment to manage Python dependencies and avoid version conflicts with other software.
-    
-    \item \textbf{Python Libraries}: The system relies on the following Python libraries for essential functionality:
+    \item \textbf{Operating System}: Windows 10/11, Ubuntu 20.04+ (recommended), or macOS. Snort integration is tested on Windows; Linux is preferred for production.
+    \item \textbf{Python}: Version 3.8 or higher. Used for backend (Flask, ML, Snort integration).
+    \item \textbf{Node.js and npm}: For building and running the React frontend.
+    \item \textbf{PostgreSQL}: Version 12 or higher for backend database (can use SQLite for development/testing).
+    \item \textbf{Snort IDS}: Version 2.9+ for real-time network intrusion detection and alert generation.
+    \item \textbf{Required Python Packages}: 
     \begin{itemize}
-        \item \texttt{python-nmap}: This is the library used to interface with the Nmap tool, allowing the Python code to initiate scans, retrieve scan results, and parse the output. It simplifies the integration of Nmap into the Python code, making it easier to interact with Nmap from within the scanning script.
-        \item \texttt{concurrent.futures}: This library is used for managing parallel tasks, enabling the scanning of multiple targets at the same time. It allows the system to implement multi-threading and parallel processing, speeding up the scanning process when multiple targets need to be scanned concurrently. This is especially useful for larger networks or when conducting multiple scans simultaneously.
-        \item \texttt{socket}: The socket library is used to manage network connections, resolve domain names to IP addresses, and handle communications with network services. It is crucial for the system to resolve domain names to IP addresses (via DNS) and for managing connections to remote systems during the scanning process.
-        \item \texttt{threading}: This library facilitates the creation and management of threads for concurrent execution. By using threading, the system can initiate multiple scans or perform various tasks (such as collecting scan results or analyzing vulnerabilities) simultaneously, significantly reducing the total execution time for large-scale scans.
+        \item Flask, Flask-SQLAlchemy, SQLAlchemy, Flask-Cors
+        \item joblib, scikit-learn (ML model loading/inference)
+        \item jira, slack\_sdk (Jira/Slack automation)
+        \item python-dotenv (environment management)
+        \item google-generativeai (Gemini AI integration)
+        \item requests, threading, logging, dotenv
     \end{itemize}
-    
-    \item \textbf{Nmap}: Nmap (Network Mapper) is a vital tool used by the system for performing network discovery and security auditing. It helps identify open ports, detect running services, and find vulnerabilities associated with the services on a target system. The system requires Nmap version 7.80 or higher for compatibility with the latest features and security fixes. Nmap is the core tool used to gather detailed network information, which is then analyzed for vulnerabilities.
-    
-    \item \textbf{Other Tools}: 
+    \item \textbf{Required Node.js Packages} (Frontend):
     \begin{itemize}
-        \item \textbf{DNS Resolver}: A built-in DNS resolver is needed for converting domain names into their corresponding IP addresses. This functionality is critical when users input domain names for scanning, as the system needs to resolve these names to perform network scans.
-        \item \textbf{Vulnerability Database (Optional)}: A vulnerability database, such as the Common Vulnerabilities and Exposures (CVE) database, can be integrated into the system to provide a list of known vulnerabilities and their descriptions. This database helps the system assess and identify any security flaws in the detected services based on known, documented vulnerabilities.
-        \item \textbf{Exploit Database (Optional)}: Integration with an exploit database (e.g., Exploit-DB) allows the system to suggest known exploits that can target the identified vulnerabilities. This feature provides valuable information about potential threats and allows security teams to assess the severity and exploitability of the vulnerabilities.
+        \item React, Material-UI, Bootstrap, Axios, React Router
+    \end{itemize}
+    \item \textbf{Development Tools}: 
+    \begin{itemize}
+        \item VS Code or PyCharm (IDE)
+        \item Git (version control)
+        \item Docker (optional, for containerized deployment)
+    \end{itemize}
+    \item \textbf{Other Tools}:
+    \begin{itemize}
+        \item Postman (API testing), pgAdmin (database management)
+        \item Slack/Jira accounts for integration testing
     \end{itemize}
 \end{itemize}
 
@@ -741,20 +751,18 @@ This chapter describes the concrete implementation of the Cyberbot system, inclu
 
 \section*{Summary}
 \addcontentsline{toc}{section}{Applications — Summary}
-This chapter enumerated real-world uses for the system across penetration testing, network maintenance, education, incident response, cloud infrastructure assessments, and continuous security monitoring. It highlighted how the scanner’s outputs support prioritization and remediation workflows and how the platform can be integrated into broader risk-management and third-party assessment processes. Use cases emphasize both operational value for SOC teams and pedagogical value for training cybersecurity students.
+This chapter details the real-world applications of the Cyberbot - Automated Security Incident Management Chatbot, which integrates a Flask backend (with Snort IDS, machine learning, Gemini AI, Jira/Slack automation, and SQLAlchemy ORM) and a React/Material-UI frontend. The system is designed for modern security operations centers (SOCs), IT teams, and educational institutions, providing automation, intelligence, and actionable insights for cybersecurity workflows.
 
-\begin{itemize}  
-    \item \textbf{Penetration Testing}: Cybersecurity professionals can incorporate the scanner into their penetration testing routines to identify potential weak spots in networks, applications, and systems.  
-    \item \textbf{Network Maintenance}: IT administrators can automate network security assessments to ensure that services running on various servers and devices are up-to-date, configured securely, and free from vulnerabilities.  
-    \item \textbf{Education and Training}: This tool can be used in cybersecurity courses and training programs to teach students and professionals about vulnerability assessment, network scanning, and real-world security practices.  
-    \item \textbf{Incident Response}: Security teams can use the scanner to quickly identify, assess, and remediate vulnerabilities during an ongoing security breach, ensuring timely mitigation of threats.  
-    \item \textbf{Web Application Security}: Developers and testers can use the scanner to identify OWASP Top 10 vulnerabilities, such as SQL Injection and Cross-Site Scripting, in web applications and APIs.  
-    \item \textbf{Cloud Infrastructure Security}: The scanner can assess cloud environments, including virtual machines, containers, and Kubernetes clusters, for misconfigurations and vulnerabilities.  
-    \item \textbf{Risk Management}: Provides actionable insights and prioritizes vulnerabilities based on their risk level, aiding in better decision-making for cybersecurity strategies.  
-    \item \textbf{Endpoint Security}: Scans workstations, laptops, and mobile devices for insecure applications, outdated software, and misconfigurations to enhance endpoint protection.  
-    \item \textbf{Third-Party Risk Management}: Evaluates the security posture of third-party vendors and their systems to mitigate supply chain risks.  
-    \item \textbf{Continuous Security Monitoring}: Ensures ongoing protection by regularly scanning for new vulnerabilities introduced due to updates, patches, or changes in system configurations.  
-\end{itemize}  
+\begin{itemize}
+    \item \textbf{Automated Incident Response}: Streamlines the detection, triage, and response to security alerts by integrating Snort IDS with machine learning and Gemini AI for dual-stage classification. Automatically creates Jira tickets and sends Slack notifications for critical incidents, reducing mean time to resolution (MTTR) and analyst workload.
+    \item \textbf{Real-Time Security Monitoring}: Provides continuous monitoring of network traffic and system events, visualized through a React dashboard with Material-UI components. Enables SOC teams to track alert trends, severity heatmaps, and integration health in real time.
+    \item \textbf{Threat Intelligence and Analysis}: Leverages Gemini AI for contextual analysis of unstructured alert data, supporting advanced threat hunting and forensic investigations. Facilitates rapid identification of novel attack patterns and supports compliance with ISO 27001 audit requirements.
+    \item \textbf{Compliance and Audit Automation}: Maintains detailed audit trails and automated documentation for all processed alerts, supporting regulatory compliance and internal security audits. The system’s RBAC and logging features ensure traceability and accountability.
+    \item \textbf{Security Operations Training}: Serves as a practical platform for cybersecurity education, allowing students and professionals to simulate real-world incident response scenarios, analyze alert data, and understand the integration of AI/ML in security workflows.
+    \item \textbf{Cloud and Hybrid Infrastructure Protection}: Supports deployment in both on-premises and cloud-native environments, enabling organizations to monitor and secure hybrid infrastructures. Prometheus-compatible telemetry and container-ready design facilitate integration with DevOps pipelines.
+    \item \textbf{Continuous Improvement and Analytics}: Enables biweekly model retraining and historical alert analysis, allowing organizations to adapt to evolving threats and optimize detection strategies over time.
+    \item \textbf{Customizable Reporting}: Users can generate and download detailed reports filtered by date, priority, and other criteria, supporting management reviews and incident post-mortems.
+\end{itemize}
 %------------------------------------------------------------
 
 
