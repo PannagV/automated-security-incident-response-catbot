@@ -50,6 +50,44 @@ try {
     Write-Host "[!] Failed to copy snort_production.conf: $_" -ForegroundColor Red
 }
 
+# Prompt for HOME_NET hardening so Snort scopes the right network
+$configPath = "$snortConfigDir\snort_production.conf"
+if (Test-Path $configPath) {
+    try {
+        $existingHomeNetLine = Get-Content $configPath | Where-Object { $_ -match '^ipvar\s+HOME_NET' }
+        $existingHomeNet = if ($existingHomeNetLine) { ($existingHomeNetLine -split '\s+',3)[2] } else { 'any' }
+    } catch {
+        $existingHomeNet = 'any'
+    }
+
+    Write-Host "" 
+    Write-Host "Current HOME_NET setting: $existingHomeNet" -ForegroundColor Yellow
+    $prompt = "Enter HOME_NET value (CIDR, comma-separated, or 'any') [press Enter to keep current]:"
+    $homeNetInput = Read-Host $prompt
+
+    if ([string]::IsNullOrWhiteSpace($homeNetInput)) {
+        Write-Host "[i] Keeping existing HOME_NET value: $existingHomeNet" -ForegroundColor Cyan
+    } else {
+        $homeNetValue = $homeNetInput.Trim()
+        try {
+            (Get-Content $configPath) |
+                ForEach-Object {
+                    if ($_ -match '^ipvar\s+HOME_NET') {
+                        "ipvar HOME_NET $homeNetValue"
+                    } elseif ($_ -match '^ipvar\s+EXTERNAL_NET') {
+                        "ipvar EXTERNAL_NET !$HOME_NET"
+                    } else {
+                        $_
+                    }
+                } | Set-Content $configPath -Encoding UTF8
+            Write-Host "[+] Updated HOME_NET to $homeNetValue" -ForegroundColor Green
+            Write-Host "[+] EXTERNAL_NET automatically set to !$HOME_NET" -ForegroundColor Green
+        } catch {
+            Write-Host "[!] Failed to update HOME_NET: $_" -ForegroundColor Red
+        }
+    }
+}
+
 # Copy production rules
 try {
     Copy-Item "$projectRoot\production-threats.rules" -Destination "$snortRulesDir\production-threats.rules" -Force
@@ -93,12 +131,11 @@ Write-Host "  [+] Network scans now require 50+ ports in 60 seconds" -Foreground
 Write-Host "  [+] Focus on actual attack patterns, not normal traffic" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next Steps:" -ForegroundColor Yellow
-Write-Host "  1. Update your HOME_NET in snort_production.conf" -ForegroundColor White
-Write-Host "     (Currently set to 'any' - should be your network range)" -ForegroundColor Gray
-Write-Host ""
-Write-Host "  2. Restart your Snort backend to use new configuration:" -ForegroundColor White
+Write-Host "  1. Restart your Snort backend to use new configuration:" -ForegroundColor White
 Write-Host "     python snort_backend.py" -ForegroundColor Gray
-Write-Host ""
+Write-Host "" 
+Write-Host "  2. (Optional) Verify alerts by running controlled scans (e.g., nmap)" -ForegroundColor White
+Write-Host "" 
 Write-Host "  3. Test with real attack patterns, not normal browsing" -ForegroundColor White
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
