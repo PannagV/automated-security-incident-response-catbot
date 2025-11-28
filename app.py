@@ -19,7 +19,7 @@ import threading
 import time
 import random
 import requests
-
+from flask_migrate import Migrate
 # Load environment variables from .env file with force reload
 load_dotenv(override=True)
 
@@ -29,8 +29,10 @@ logger = logging.getLogger(__name__)
 
 # Add debug logging for Slack configuration
 print("==== SLACK CONFIGURATION DEBUG ====")
-print(f"SLACK_BOT_TOKEN: {os.getenv('SLACK_BOT_TOKEN')[:10]}... (Length: {len(os.getenv('SLACK_BOT_TOKEN', ''))})")
-print(f"SLACK_CHANNEL_ID: {os.getenv('SLACK_CHANNEL_ID')}")
+slack_token = os.getenv('SLACK_BOT_TOKEN', '') or ''
+token_preview = f"{slack_token[:10]}..." if slack_token else "None"
+print(f"SLACK_BOT_TOKEN: {token_preview} (Length: {len(slack_token)})")
+print(f"SLACK_CHANNEL_ID: {os.getenv('SLACK_CHANNEL_ID', 'None')}")
 print("====================================")
 
 app = Flask(__name__)
@@ -76,6 +78,8 @@ db_name = os.getenv('DB_NAME', 'alerts')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{db_username}:{db_password}@{db_host}/{db_name}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+migrate = Migrate(app, db)
 
 # Define the priority mapping as a proper variable
 PRIORITY_MAPPING = {
@@ -499,7 +503,7 @@ class Alert(db.Model):
     source = db.Column(db.String(50), default='manual', nullable=True)  # Track alert source (manual, snort_ids, api, etc.)
     
     def __repr__(self):
-        return f"<Alert id={self.id}, severity={self.severity}, source={self.source}>"
+        return f"<Alert id={self.id}, severity={self.severity} " #, source={self.source}>
 
 # Define the priority mapping as a proper variable
 PRIORITY_MAPPING = {
@@ -529,11 +533,45 @@ class SecurityEvent(db.Model):
     def __repr__(self):
         return f'<SecurityEvent {self.id}>'
 
+# Function to ensure Alert table columns exist for new model fields
+def ensure_alert_column(column_name, ddl_statements):
+    """Ensure the Alert table has the specified column before queries run."""
+    try:
+        check_query = text(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='alert' AND column_name=:column_name
+            """
+        )
+        with db.engine.connect() as conn:
+            exists = conn.execute(check_query, {"column_name": column_name}).scalar() is not None
+        if exists:
+            logger.debug("Alert table already has '%s' column", column_name)
+            return
+        with db.engine.begin() as conn:
+            for statement in ddl_statements:
+                conn.execute(text(statement))
+        logger.info("Added missing '%s' column to Alert table", column_name)
+    except Exception as e:
+        logger.error("Failed to ensure '%s' column on Alert table: %s", column_name, str(e))
+
 # Function to create database tables
 def create_tables():
     try:
         # Create tables
         db.create_all()
+        ensure_alert_column(
+            "additional_data",
+            ["ALTER TABLE alert ADD COLUMN additional_data JSONB"]
+        )
+        ensure_alert_column(
+            "source",
+            [
+                "ALTER TABLE alert ADD COLUMN source VARCHAR(50) DEFAULT 'manual'",
+                "UPDATE alert SET source = 'manual' WHERE source IS NULL"
+            ]
+        )
         
         logger.info("Database tables created successfully")
     except Exception as e:
