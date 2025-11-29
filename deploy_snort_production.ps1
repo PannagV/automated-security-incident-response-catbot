@@ -70,18 +70,29 @@ if (Test-Path $configPath) {
     } else {
         $homeNetValue = $homeNetInput.Trim()
         try {
-            (Get-Content $configPath) |
+            $updatedContent = (Get-Content $configPath) |
                 ForEach-Object {
                     if ($_ -match '^ipvar\s+HOME_NET') {
                         "ipvar HOME_NET $homeNetValue"
                     } elseif ($_ -match '^ipvar\s+EXTERNAL_NET') {
-                        "ipvar EXTERNAL_NET !$HOME_NET"
+                        if ($homeNetValue -ieq 'any') {
+                            "ipvar EXTERNAL_NET any"
+                        } else {
+                            "ipvar EXTERNAL_NET !$HOME_NET"
+                        }
                     } else {
                         $_
                     }
-                } | Set-Content $configPath -Encoding UTF8
+                }
+
+            $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+            [System.IO.File]::WriteAllLines($configPath, $updatedContent, $utf8NoBom)
             Write-Host "[+] Updated HOME_NET to $homeNetValue" -ForegroundColor Green
-            Write-Host "[+] EXTERNAL_NET automatically set to !$HOME_NET" -ForegroundColor Green
+            if ($homeNetValue -ieq 'any') {
+                Write-Host "[+] EXTERNAL_NET set to 'any' to avoid !any syntax" -ForegroundColor Green
+            } else {
+                Write-Host "[+] EXTERNAL_NET automatically set to !$HOME_NET" -ForegroundColor Green
+            }
         } catch {
             Write-Host "[!] Failed to update HOME_NET: $_" -ForegroundColor Red
         }
