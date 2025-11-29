@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDarkMode } from '../contexts/DarkModeContext';
 
 const SnortIDS = () => {
     const { isDarkMode } = useDarkMode();
+    const navigate = useNavigate();
     const [snortStatus, setSnortStatus] = useState({ status: 'stopped' });
     const [alerts, setAlerts] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -262,15 +264,25 @@ const SnortIDS = () => {
                                 DEBUG MODE
                             </span>
                         )}
+                        <button
+                            className="btn btn-primary"
+                            onClick={() => navigate('/')}
+                            title="Back to Main Dashboard"
+                        >
+                            <i className="bi bi-arrow-left me-2"></i>
+                            Back to Dashboard
+                        </button>
                     </div>
                 </div>
             </div>
 
             {error && (
                 <div className="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i className="bi bi-exclamation-triangle me-2"></i>
-                    {error}
-                    <button type="button" className="btn-close" onClick={() => setError(null)}></button>
+                    <div className="d-flex align-items-center">
+                        <i className="bi bi-exclamation-triangle me-2"></i>
+                        <span className="flex-grow-1">{error}</span>
+                        <button type="button" className="btn-close" onClick={() => setError(null)}></button>
+                    </div>
                 </div>
             )}
 

@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  vulnerable-site:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./uploads:/app/uploads
+    environment:
+      - FLASK_ENV=development
+    command: python vulnerable_test_site.py
+
+  snort-app:
+    build: .
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    volumes:
+      - .:/app
+    environment:
+      - FLASK_ENV=development
+    depends_on:
+      - vulnerable-site
+    command: sh -c "python app.py & python snort_backend.py"
+
+# Note: This docker setup is for demonstration only
+# In a real environment, you'd want separate containers for each service
+# and proper network isolation for testing
