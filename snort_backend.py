@@ -4,6 +4,7 @@ import time
 import json
 import os
 import re
+import platform
 from datetime import datetime
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -17,9 +18,21 @@ class SnortManager:
     def __init__(self):
         self.snort_process = None
         self.is_running = False
-        self.log_file_path = r"C:\Snort\log\alert.ids"
-        self.snort_config_path = r"C:\Snort\etc\snort_production.conf"  # Use production config
-        self.snort_executable = r"C:\Snort\bin\snort.exe"
+        
+        # Platform-specific paths
+        if platform.system() == 'Windows':
+            self.log_file_path = r"C:\Snort\log\alert.ids"
+            self.snort_config_path = r"C:\Snort\etc\snort_production.conf"
+            self.snort_executable = r"C:\Snort\bin\snort.exe"
+            self.log_dir = r"C:\Snort\log"
+            self.snort_bin_dir = r"C:\Snort\bin"
+        else:  # Linux
+            self.log_file_path = "/var/log/snort/alert.ids"
+            self.snort_config_path = "/etc/snort/snort.conf"
+            self.snort_executable = "/usr/sbin/snort"
+            self.log_dir = "/var/log/snort"
+            self.snort_bin_dir = "/usr/sbin"
+        
         self.interface = self.get_default_interface()
         self.alerts = []
         self.max_alerts = 1000
@@ -29,26 +42,71 @@ class SnortManager:
         self.processed_alert_ids = set()  # Track processed alerts to avoid duplicates
         self.classification_method = "model"  # Default to ML model, can be "model" or "gemini"
     def get_default_interface(self):
-        """Get the primary active network interface for Snort on Windows"""
+        """Get the primary active network interface for Snort"""
         try:
             import socket
             
-            # Method 1: Get the interface used for default route
-            primary_interface = self._get_primary_interface()
-            if primary_interface:
-                return primary_interface
-            
-            # Method 2: Find active non-loopback interfaces
-            active_interfaces = self._get_active_interfaces()
-            if active_interfaces:
-                return active_interfaces[0]
-            
-            # Fallback to interface 1
-            return "1"
+            if platform.system() == 'Linux':
+                # On Linux, return interface name (e.g., eth0, ens33)
+                return self._get_linux_primary_interface()
+            else:
+                # On Windows, return interface number
+                # Method 1: Get the interface used for default route
+                primary_interface = self._get_primary_interface()
+                if primary_interface:
+                    return primary_interface
+                
+                # Method 2: Find active non-loopback interfaces
+                active_interfaces = self._get_active_interfaces()
+                if active_interfaces:
+                    return active_interfaces[0]
+                
+                # Fallback to interface 1
+                return "1"
             
         except Exception as e:
             print(f"Error detecting interface: {e}")
-            return "1"
+            return "eth0" if platform.system() == 'Linux' else "1"
+    def _get_linux_primary_interface(self):
+        """Get primary network interface on Linux"""
+        try:
+            import socket
+            
+            # Get our primary IP address
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                local_ip = s.getsockname()[0]
+            
+            # Find interface with this IP
+            interfaces = psutil.net_if_addrs()
+            for interface_name, addresses in interfaces.items():
+                for addr in addresses:
+                    if addr.family.name == 'AF_INET' and addr.address == local_ip:
+                        print(f"Found primary Linux interface: {interface_name} ({local_ip})")
+                        return interface_name
+            
+            # Fallback: try to get default route interface
+            try:
+                result = subprocess.run(['ip', 'route', 'show', 'default'],
+                                      capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    # Parse: "default via 192.168.1.1 dev eth0 ..."
+                    parts = result.stdout.split()
+                    if 'dev' in parts:
+                        dev_idx = parts.index('dev')
+                        if dev_idx + 1 < len(parts):
+                            interface = parts[dev_idx + 1]
+                            print(f"Found default route interface: {interface}")
+                            return interface
+            except Exception as e:
+                print(f"Error getting default route: {e}")
+            
+            return "eth0"  # Final fallback
+            
+        except Exception as e:
+            print(f"Error detecting Linux interface: {e}")
+            return "eth0"
+    
     def _get_windows_primary_interface(self):
         """Use Windows route command to find primary interface"""
         try:
@@ -223,8 +281,12 @@ class SnortManager:
     def is_admin(self):
         """Check if running with administrator privileges"""
         try:
-            import ctypes
-            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            if platform.system() == 'Windows':
+                import ctypes
+                return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            else:
+                # On Linux, check if running as root (UID 0)
+                return os.geteuid() == 0
         except:
             return False
 
@@ -274,9 +336,10 @@ class SnortManager:
         
         # Check administrator privileges
         if not self.is_admin():
+            priv_name = "Administrator" if platform.system() == 'Windows' else "root"
             return {
                 "status": "error", 
-                "message": "Snort requires Administrator privileges for packet capture. Please run as Administrator."
+                "message": f"Snort requires {priv_name} privileges for packet capture. Please run as {priv_name}."
             }
         
         try:
@@ -308,41 +371,72 @@ class SnortManager:
     def _start_snort_with_terminal(self):
         """Start Snort with a visible terminal window for debugging"""
         try:
-            # Create a batch file to run Snort with proper parameters
-            batch_file_path = r"C:\Snort\log\run_snort_debug.bat"
-            
-            # Snort command for debugging
-            snort_cmd = f'''@echo off
-    echo Starting Snort IDS in Debug Mode...
-    echo Configuration: {self.snort_config_path}
-    echo Interface: {self.interface}
-    echo Log Directory: C:\\Snort\\log
-    echo.
-    cd /d "C:\\Snort\\bin"
-    echo Running: snort -A fast -v -i {self.interface} -c "{self.snort_config_path}" -l "C:\\Snort\\log" -N
-    echo.
-    snort -A fast -v -i {self.interface} -c "{self.snort_config_path}" -l "C:\\Snort\\log" -N
-    echo.
-    echo Snort has stopped. Press any key to close this window...
-    pause'''
-            
-            # Write the batch file
-            with open(batch_file_path, 'w') as f:
-                f.write(snort_cmd)
-            
-            print(f"Created debug batch file: {batch_file_path}")
-            
-            # Start the batch file in a new terminal window
-            self.snort_process = subprocess.Popen(
-                ['cmd', '/c', 'start', 'cmd', '/k', batch_file_path],
-                shell=True,
-                cwd=r"C:\Snort\bin"
-            )
+            if platform.system() == 'Windows':
+                # Windows: Create batch file
+                batch_file_path = os.path.join(self.log_dir, "run_snort_debug.bat")
+                
+                snort_cmd = f'''@echo off
+echo Starting Snort IDS in Debug Mode...
+echo Configuration: {self.snort_config_path}
+echo Interface: {self.interface}
+echo Log Directory: {self.log_dir}
+echo.
+cd /d "{self.snort_bin_dir}"
+echo Running: snort -A fast -v -i {self.interface} -c "{self.snort_config_path}" -l "{self.log_dir}" -N
+echo.
+snort -A fast -v -i {self.interface} -c "{self.snort_config_path}" -l "{self.log_dir}" -N
+echo.
+echo Snort has stopped. Press any key to close this window...
+pause'''
+                
+                with open(batch_file_path, 'w') as f:
+                    f.write(snort_cmd)
+                
+                print(f"Created debug batch file: {batch_file_path}")
+                
+                # Start the batch file in a new terminal window
+                self.snort_process = subprocess.Popen(
+                    ['cmd', '/c', 'start', 'cmd', '/k', batch_file_path],
+                    shell=True,
+                    cwd=self.snort_bin_dir
+                )
+            else:
+                # Linux: Use gnome-terminal, xterm, or konsole
+                snort_cmd = [
+                    self.snort_executable,
+                    "-A", "fast",
+                    "-v",
+                    "-i", self.interface,
+                    "-c", self.snort_config_path,
+                    "-l", self.log_dir,
+                    "-N"
+                ]
+                
+                # Try different terminal emulators
+                terminal_cmd = None
+                if os.path.exists('/usr/bin/gnome-terminal'):
+                    terminal_cmd = ['gnome-terminal', '--', 'bash', '-c',
+                                  f"echo 'Starting Snort IDS in Debug Mode...'; echo 'Interface: {self.interface}'; echo 'Config: {self.snort_config_path}'; sudo {' '.join(snort_cmd)}; echo ''; echo 'Snort stopped. Press Enter to close...'; read"]
+                elif os.path.exists('/usr/bin/xterm'):
+                    terminal_cmd = ['xterm', '-hold', '-e',
+                                  f"echo 'Starting Snort IDS'; sudo {' '.join(snort_cmd)}"]
+                elif os.path.exists('/usr/bin/konsole'):
+                    terminal_cmd = ['konsole', '--hold', '-e',
+                                  f"sudo {' '.join(snort_cmd)}"]
+                else:
+                    # Fallback to background mode
+                    print("No terminal emulator found, running in background")
+                    return self._start_snort_background()
+                
+                self.snort_process = subprocess.Popen(
+                    terminal_cmd,
+                    cwd=self.snort_bin_dir
+                )
             
             # Wait a moment
             time.sleep(2)
             
-            # Find the Snort process by name (since we started it via cmd)
+            # Find the Snort process by name (since we started it via terminal)
             snort_pid = self._find_snort_process()
             
             self.is_running = True
@@ -375,7 +469,7 @@ class SnortManager:
                 "-N",
                 "-c", self.snort_config_path,
                 "-i", self.interface,
-                "-l", r"C:\Snort\log",
+                "-l", self.log_dir,
                 "-k", "none",
                 "-q"
             ]
@@ -383,15 +477,15 @@ class SnortManager:
             print(f"Starting Snort in background with command: {' '.join(cmd)}")
             
             original_dir = os.getcwd()
-            os.chdir(r"C:\Snort\bin")
+            os.chdir(self.snort_bin_dir)
             
             try:
                 self.snort_process = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0,
-                    cwd=r"C:\Snort\bin"
+                    creationflags=subprocess.CREATE_NO_WINDOW if platform.system() == 'Windows' else 0,
+                    cwd=self.snort_bin_dir
                 )
             finally:
                 os.chdir(original_dir)
@@ -844,7 +938,7 @@ class SnortManager:
                 debug_cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                cwd=r"C:\Snort\bin"
+                cwd=self.snort_bin_dir
             )
             
             # Wait 30 seconds

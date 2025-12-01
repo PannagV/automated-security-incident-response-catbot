@@ -130,9 +130,9 @@ def test_directory_traversal():
 
     payloads = [
         ("../../../etc/passwd", "Unix system file access"),
-        ("../../../Windows/System32/drivers/etc/hosts", "Windows system file access"),
+        ("../../../etc/hosts", "Unix hosts file access"),
         ("....//....//....//etc/passwd", "Bypass filter attempt"),
-        ("..\\..\\..\\Windows\\System32\\config\\sam", "Windows registry access")
+        ("..\\..\\..\\etc\\passwd", "Path traversal with backslashes")
     ]
 
     for payload, description in payloads:

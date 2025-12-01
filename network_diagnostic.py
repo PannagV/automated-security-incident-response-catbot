@@ -9,13 +9,29 @@ import psutil
 import socket
 import os
 import sys
+import platform
 from datetime import datetime
 
 def check_npcap_winpcap():
-    """Check if Npcap or WinPcap is installed and working"""
+    """Check if Npcap or WinPcap is installed and working (Windows only)"""
     print("=== Checking Packet Capture Drivers ===")
     
-    # Check for Npcap
+    if platform.system() != 'Windows':
+        print("✓ Linux system - using native packet capture (libpcap)")
+        # Check for libpcap on Linux
+        try:
+            result = subprocess.run(['ldconfig', '-p'], capture_output=True, text=True)
+            if 'libpcap' in result.stdout:
+                print("✓ libpcap found")
+                return True
+            else:
+                print("✗ libpcap not found - install with: sudo apt install libpcap-dev")
+                return False
+        except:
+            print("⚠ Could not verify libpcap installation")
+            return True
+    
+    # Windows-specific checks
     npcap_paths = [
         r"C:\Program Files\Npcap",
         r"C:\Program Files (x86)\Npcap",
@@ -44,9 +60,15 @@ def check_snort_interfaces():
     """Check Snort's view of network interfaces"""
     print("\n=== Checking Snort Interface Detection ===")
     
-    snort_exe = r"C:\Snort\bin\snort.exe"
+    if platform.system() == 'Windows':
+        snort_exe = r"C:\Snort\bin\snort.exe"
+    else:
+        snort_exe = "/usr/sbin/snort"
+    
     if not os.path.exists(snort_exe):
         print(f"✗ Snort executable not found at: {snort_exe}")
+        if platform.system() == 'Linux':
+            print("  Install with: sudo apt install snort")
         return False
     
     try:

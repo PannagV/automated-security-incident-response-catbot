@@ -60,13 +60,13 @@ def test_xss():
 
 def test_directory_traversal():
     """Test directory traversal vulnerabilities"""
-    print(" Testing Directory Traversal...")
+    print("🔍 Testing Directory Traversal...")
 
     payloads = [
         "../../../etc/passwd",
-        "../../../Windows/System32/drivers/etc/hosts",
+        "../../../etc/hosts",
         "....//....//....//etc/passwd",
-        "..\\..\\..\\Windows\\System32\\config\\sam"
+        "..\\..\\..\\etc\\passwd"
     ]
 
     for payload in payloads:
@@ -77,6 +77,7 @@ def test_directory_traversal():
             time.sleep(0.5)
         except Exception as e:
             print(f"  ✗ Directory Traversal failed: {e}")
+
 
 def test_command_injection():
     """Test command injection vulnerabilities"""
