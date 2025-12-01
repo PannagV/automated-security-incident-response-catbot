@@ -9,12 +9,18 @@ import requests
 import time
 import sys
 import subprocess
+import os
 
-TARGET_URL = "http://localhost:8080"
+# Get target URL from environment or use default
+TARGET_URL = os.getenv('TARGET_URL', "http://localhost:3000")
+APP_URL = os.getenv('APP_URL', "http://localhost:5000")
+
+print(f"\n Target URL: {TARGET_URL}")
+print(f" App URL: {APP_URL}\n")
 
 def test_sql_injection():
     """Test SQL injection vulnerabilities"""
-    print("🔍 Testing SQL Injection...")
+    print(" Testing SQL Injection...")
 
     payloads = [
         "admin'--",
@@ -34,7 +40,7 @@ def test_sql_injection():
 
 def test_xss():
     """Test XSS vulnerabilities"""
-    print("🔍 Testing XSS...")
+    print(" Testing XSS...")
 
     payloads = [
         "<script>alert('XSS')</script>",
@@ -54,7 +60,7 @@ def test_xss():
 
 def test_directory_traversal():
     """Test directory traversal vulnerabilities"""
-    print("🔍 Testing Directory Traversal...")
+    print(" Testing Directory Traversal...")
 
     payloads = [
         "../../../etc/passwd",
@@ -74,7 +80,7 @@ def test_directory_traversal():
 
 def test_command_injection():
     """Test command injection vulnerabilities"""
-    print("🔍 Testing Command Injection...")
+    print(" Testing Command Injection...")
 
     payloads = [
         "whoami",
@@ -95,7 +101,7 @@ def test_command_injection():
 
 def test_nmap_scans():
     """Test network scanning (requires nmap)"""
-    print("🔍 Testing Network Scans...")
+    print(" Testing Network Scans...")
 
     target_ip = "127.0.0.1"  # Localhost
 
@@ -122,27 +128,32 @@ def test_nmap_scans():
 
 def check_snort_alerts():
     """Check for Snort alerts"""
-    print("🔍 Checking Snort Alerts...")
+    print(" Checking Snort Alerts...")
 
     try:
-        response = requests.get("http://localhost:5000/get_alerts", timeout=5)
+        response = requests.get(f"{APP_URL}/get_alerts", timeout=5)
         if response.status_code == 200:
             alerts = response.json()
             alert_count = len(alerts)
             print(f"  ✓ Found {alert_count} alerts")
 
-            # Show recent alerts
+            # Show recent alerts with more details
             for alert in alerts[-5:]:  # Last 5 alerts
                 severity = alert.get('severity', 'Unknown')
                 message = alert.get('message', '')[:50]
-                print(f"    - {severity}: {message}...")
+                source = alert.get('source', 'unknown')
+                additional_data = alert.get('additional_data', {})
+                impact = additional_data.get('impact', '')
+                print(f"    - [{severity}] {message}... (from {source})")
+                if impact:
+                    print(f"      Impact: {impact[:60]}...")
         else:
             print(f"  ✗ Failed to get alerts (Status: {response.status_code})")
     except Exception as e:
         print(f"  ✗ Could not check alerts: {e}")
 
 def main():
-    print("🚨 Snort IDS Testing Script")
+    print(" Snort IDS Testing Script")
     print("=" * 50)
     print("This script will perform various attacks against the vulnerable test site")
     print("Make sure Snort and the vulnerable site are running before proceeding!")

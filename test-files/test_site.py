@@ -30,7 +30,7 @@ def home():
     <html>
     <head><title>Vulnerable Test Site</title></head>
     <body>
-        <h1>🚨 VULNERABLE TEST SITE 🚨</h1>
+        <h1> VULNERABLE TEST SITE </h1>
         <p>This site contains intentional vulnerabilities for testing Snort IDS.</p>
         <p><strong>DO NOT USE IN PRODUCTION!</strong></p>
 
@@ -303,7 +303,8 @@ def upload():
     ''')
 
 if __name__ == '__main__':
-    print("🚨 Starting VULNERABLE test site on http://localhost:3000")
-    print("⚠️  This site contains intentional security vulnerabilities!")
-    print("⚠️  Only use in a controlled testing environment!")
-    app.run(host='127.0.0.1', port=3000, debug=True)
+    print(" Starting VULNERABLE test site on http://0.0.0.0:3000")
+    print("  This site contains intentional security vulnerabilities!")
+    print("  Only use in a controlled testing environment!")
+    print("  Accessible from network - ensure firewall is configured!")
+    app.run(host='0.0.0.0', port=3000, debug=True)

@@ -14,6 +14,7 @@ const SnortIDS = () => {
     const [filterSeverity, setFilterSeverity] = useState('all');
     const [availableInterfaces, setAvailableInterfaces] = useState([]);
     const [selectedInterface, setSelectedInterface] = useState('');
+    const [classificationMethod, setClassificationMethod] = useState('model');
     const alertsEndRef = useRef(null);
     
     // Stats
@@ -29,6 +30,7 @@ const SnortIDS = () => {
         fetchSnortStatus();
         fetchAlerts();
         fetchAvailableInterfaces();
+        fetchClassificationMethod();
         
         // Set up auto-refresh
         const interval = setInterval(() => {
@@ -97,6 +99,18 @@ const SnortIDS = () => {
         }
     };
 
+    const fetchClassificationMethod = async () => {
+        try {
+            const response = await fetch('http://127.0.0.1:5001/snort/classification-method');
+            if (response.ok) {
+                const data = await response.json();
+                setClassificationMethod(data.classification_method);
+            }
+        } catch (err) {
+            console.error('Error fetching classification method:', err);
+        }
+    };
+
     const handleInterfaceChange = async (interfaceId) => {
         try {
             const response = await fetch(`http://127.0.0.1:5001/snort/interface/set/${interfaceId}`, {
@@ -111,6 +125,20 @@ const SnortIDS = () => {
         }
     };
 
+    const handleClassificationMethodChange = async (method) => {
+        try {
+            const response = await fetch(`http://127.0.0.1:5001/snort/classification-method/set/${method}`, {
+                method: 'POST'
+            });
+            if (response.ok) {
+                setClassificationMethod(method);
+                setError(null);
+            }
+        } catch (err) {
+            setError('Failed to set classification method');
+        }
+    };
+
     const startSnortBackground = async () => {
         setLoading(true);
         try {
@@ -122,6 +150,14 @@ const SnortIDS = () => {
             if (result.status === 'started' || result.status === 'already_running') {
                 setSnortStatus({ status: 'running', ...result });
                 setError(null);
+                // Refresh status immediately
+                setTimeout(fetchSnortStatus, 500);
+            } else if (result.status === 'error' && result.orphaned_processes) {
+                // Show specific error for orphaned processes
+                setError(
+                    `Cannot start: ${result.orphaned_processes.length} orphaned Snort process(es) found. ` +
+                    `Use Force Stop to kill them first. PIDs: ${result.orphaned_processes.map(p => p.pid).join(', ')}`
+                );
             } else {
                 setError(result.message);
             }
@@ -142,6 +178,14 @@ const SnortIDS = () => {
             if (result.status === 'started_debug' || result.status === 'already_running') {
                 setSnortStatus({ status: 'running', ...result });
                 setError(null);
+                // Refresh status immediately
+                setTimeout(fetchSnortStatus, 500);
+            } else if (result.status === 'error' && result.orphaned_processes) {
+                // Show specific error for orphaned processes
+                setError(
+                    `Cannot start: ${result.orphaned_processes.length} orphaned Snort process(es) found. ` +
+                    `Use Force Stop to kill them first. PIDs: ${result.orphaned_processes.map(p => p.pid).join(', ')}`
+                );
             } else {
                 setError(result.message);
             }
@@ -159,14 +203,40 @@ const SnortIDS = () => {
             });
             const result = await response.json();
             
-            if (result.status === 'stopped' || result.status === 'killed') {
+            if (result.status === 'stopped' || result.status === 'killed' || result.status === 'not_running') {
                 setSnortStatus({ status: 'stopped' });
                 setError(null);
+                // Refresh status immediately after stopping
+                setTimeout(fetchSnortStatus, 500);
             } else {
                 setError(result.message);
             }
         } catch (err) {
             setError('Failed to stop Snort: ' + err.message);
+        }
+        setLoading(false);
+    };
+
+    const forceStopSnort = async () => {
+        if (!window.confirm('Force stop all Snort processes? This will kill any orphaned Snort processes.')) return;
+        
+        setLoading(true);
+        try {
+            const response = await fetch('http://127.0.0.1:5001/snort/stop/force', {
+                method: 'POST'
+            });
+            const result = await response.json();
+            
+            if (result.status === 'killed') {
+                setSnortStatus({ status: 'stopped' });
+                setError(null);
+                // Refresh status immediately after force stopping
+                setTimeout(fetchSnortStatus, 500);
+            } else {
+                setError(result.message);
+            }
+        } catch (err) {
+            setError('Failed to force stop Snort: ' + err.message);
         }
         setLoading(false);
     };
@@ -255,9 +325,15 @@ const SnortIDS = () => {
                     </div>
                     <div className="d-flex align-items-center gap-3">
                         <div className={`status-indicator ${snortStatus.status === 'running' ? 'status-active' : ''}`}></div>
-                        <span className={`badge ${snortStatus.status === 'running' ? 'bg-success' : 'bg-secondary'}`}>
-                            {snortStatus.status === 'running' ? 'ACTIVE' : 'STOPPED'}
+                        <span className={`badge ${snortStatus.status === 'running' ? (snortStatus.managed === false ? 'bg-warning' : 'bg-success') : 'bg-secondary'}`}>
+                            {snortStatus.status === 'running' ? (snortStatus.managed === false ? '⚠️ ORPHANED' : 'ACTIVE') : 'STOPPED'}
                         </span>
+                        {snortStatus.managed === false && snortStatus.status === 'running' && (
+                            <small className="text-warning">
+                                <i className="bi bi-exclamation-triangle me-1"></i>
+                                Not Managed
+                            </small>
+                        )}
                         {snortStatus.debug_mode && (
                             <span className="badge bg-info">
                                 <i className="bi bi-terminal me-1"></i>
@@ -265,12 +341,13 @@ const SnortIDS = () => {
                             </span>
                         )}
                         <button
-                            className="btn btn-primary"
+                            className="btn btn-primary d-flex align-items-center"
                             onClick={() => navigate('/')}
                             title="Back to Main Dashboard"
+                            style={{ whiteSpace: 'nowrap' }}
                         >
                             <i className="bi bi-arrow-left me-2"></i>
-                            Back to Dashboard
+                            <span>Back to Dashboard</span>
                         </button>
                     </div>
                 </div>
@@ -282,6 +359,33 @@ const SnortIDS = () => {
                         <i className="bi bi-exclamation-triangle me-2"></i>
                         <span className="flex-grow-1">{error}</span>
                         <button type="button" className="btn-close" onClick={() => setError(null)}></button>
+                    </div>
+                </div>
+            )}
+
+            {/* Warning for orphaned processes */}
+            {snortStatus.managed === false && snortStatus.status === 'running' && (
+                <div className="alert alert-warning alert-dismissible fade show" role="alert">
+                    <div className="d-flex align-items-center">
+                        <i className="bi bi-exclamation-triangle me-2"></i>
+                        <div className="flex-grow-1">
+                            <strong>Orphaned Snort Process Detected!</strong>
+                            <p className="mb-0">
+                                Snort is running but not managed by this dashboard (PID: {snortStatus.pid}). 
+                                This may happen if Snort was started manually or the previous session didn't close properly.
+                            </p>
+                            <p className="mb-0 mt-2">
+                                <strong>Action Required:</strong> Use the "Force Stop" button to kill the orphaned process before starting Snort again.
+                            </p>
+                        </div>
+                        <button 
+                            className="btn btn-danger btn-sm ms-3"
+                            onClick={forceStopSnort}
+                            disabled={loading}
+                        >
+                            <i className="bi bi-x-octagon me-1"></i>
+                            Force Stop Now
+                        </button>
                     </div>
                 </div>
             )}
@@ -348,17 +452,45 @@ const SnortIDS = () => {
                                     </small>
                                 </div>
                                 <div className="col-md-6">
-                                    <label className="form-label">&nbsp;</label>
-                                    <div>
-                                        <button 
-                                            className="btn btn-outline-info"
-                                            onClick={fetchAvailableInterfaces}
-                                            disabled={loading}
-                                        >
-                                            <i className="bi bi-arrow-clockwise me-2"></i>
-                                            Refresh Interfaces
-                                        </button>
-                                    </div>
+                                    <label className="form-label">Alert Classification Method</label>
+                                    <select 
+                                        className="form-select"
+                                        value={classificationMethod}
+                                        onChange={(e) => handleClassificationMethodChange(e.target.value)}
+                                        disabled={snortStatus.status === 'running'}
+                                    >
+                                        <option value="model">ML Model (Local)</option>
+                                        <option value="gemini">Gemini AI (Cloud)</option>
+                                    </select>
+                                    <small className="text-muted">
+                                        {classificationMethod === 'model' 
+                                            ? 'Uses trained Random Forest classifier' 
+                                            : 'Uses Google Gemini AI for classification'}
+                                    </small>
+                                </div>
+                            </div>
+
+                            {/* Refresh Buttons Row */}
+                            <div className="row mb-3">
+                                <div className="col-md-6">
+                                    <button 
+                                        className="btn btn-outline-info"
+                                        onClick={fetchAvailableInterfaces}
+                                        disabled={loading}
+                                    >
+                                        <i className="bi bi-arrow-clockwise me-2"></i>
+                                        Refresh Interfaces
+                                    </button>
+                                </div>
+                                <div className="col-md-6">
+                                    <button 
+                                        className="btn btn-outline-info"
+                                        onClick={fetchClassificationMethod}
+                                        disabled={loading}
+                                    >
+                                        <i className="bi bi-arrow-clockwise me-2"></i>
+                                        Refresh Classification
+                                    </button>
                                 </div>
                             </div>
 
@@ -393,6 +525,16 @@ const SnortIDS = () => {
                                 >
                                     <i className="bi bi-stop-fill me-2"></i>
                                     Stop Snort
+                                </button>
+
+                                <button 
+                                    className="btn btn-outline-danger"
+                                    onClick={forceStopSnort}
+                                    disabled={loading}
+                                    title="Force kill all Snort processes (use if normal stop fails)"
+                                >
+                                    <i className="bi bi-x-octagon me-2"></i>
+                                    Force Stop
                                 </button>
 
                                 <button 

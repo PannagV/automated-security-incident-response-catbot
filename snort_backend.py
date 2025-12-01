@@ -27,6 +27,7 @@ class SnortManager:
         self.debug_mode = False
         self.main_app_url = "http://localhost:5000"  # Main app URL for integration
         self.processed_alert_ids = set()  # Track processed alerts to avoid duplicates
+        self.classification_method = "model"  # Default to ML model, can be "model" or "gemini"
     def get_default_interface(self):
         """Get the primary active network interface for Snort on Windows"""
         try:
@@ -262,6 +263,15 @@ class SnortManager:
         if self.is_running:
             return {"status": "already_running", "message": "Snort is already running"}
         
+        # Check for orphaned Snort processes before starting
+        orphaned_procs = self.find_snort_processes()
+        if orphaned_procs:
+            return {
+                "status": "error",
+                "message": f"Found {len(orphaned_procs)} orphaned Snort process(es) running. Use Force Stop to kill them before starting.",
+                "orphaned_processes": orphaned_procs
+            }
+        
         # Check administrator privileges
         if not self.is_admin():
             return {
@@ -491,6 +501,46 @@ class SnortManager:
         except Exception as e:
             return {"status": "error", "message": f"Error stopping Snort: {str(e)}"}
     
+    def find_snort_processes(self):
+        """Find all running Snort processes system-wide"""
+        snort_processes = []
+        try:
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    proc_name = proc.info['name'].lower() if proc.info['name'] else ''
+                    if 'snort' in proc_name:
+                        snort_processes.append({
+                            'pid': proc.info['pid'],
+                            'name': proc.info['name'],
+                            'cmdline': ' '.join(proc.info['cmdline']) if proc.info['cmdline'] else ''
+                        })
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+        except Exception as e:
+            print(f"Error finding Snort processes: {e}")
+        
+        return snort_processes
+    
+    def kill_all_snort_processes(self):
+        """Force kill all Snort processes"""
+        killed_pids = []
+        snort_procs = self.find_snort_processes()
+        
+        for proc_info in snort_procs:
+            try:
+                proc = psutil.Process(proc_info['pid'])
+                proc.kill()  # Force kill
+                killed_pids.append(proc_info['pid'])
+                print(f"Killed Snort process with PID {proc_info['pid']}")
+            except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                print(f"Could not kill process {proc_info['pid']}: {e}")
+        
+        # Reset internal state
+        self.is_running = False
+        self.snort_process = None
+        
+        return killed_pids
+    
     def get_status(self):
         """Get current Snort status with error information"""
         status_info = {
@@ -499,13 +549,15 @@ class SnortManager:
             "errors": self.snort_errors[-5:] if self.snort_errors else []  # Last 5 errors
         }
         
+        # First check if our tracked process is running
         if self.is_running and self.snort_process:
             try:
                 if self.snort_process.poll() is None:
                     status_info.update({
                         "status": "running",
                         "pid": self.snort_process.pid,
-                        "interface": self.interface
+                        "interface": self.interface,
+                        "managed": True  # Process started by this backend
                     })
                 else:
                     self.is_running = False
@@ -517,6 +569,19 @@ class SnortManager:
                 self.snort_process = None
                 status_info["status"] = "error"
                 status_info["message"] = "Error checking Snort status"
+        
+        # Check for any orphaned Snort processes running outside our control
+        if status_info["status"] == "stopped":
+            orphaned_procs = self.find_snort_processes()
+            if orphaned_procs:
+                # Found Snort running but not managed by us
+                status_info.update({
+                    "status": "running",
+                    "pid": orphaned_procs[0]['pid'],
+                    "managed": False,  # Process NOT started by this backend
+                    "message": "Snort is running but not managed by this backend. Use Force Stop to kill it.",
+                    "orphaned_processes": orphaned_procs
+                })
         
         return status_info
     
@@ -654,7 +719,7 @@ class SnortManager:
                 f"{self.main_app_url}/process_alert",
                 json={
                     "message": alert_message,
-                    "classification_method": "model",  # Use ML model for classification
+                    "classification_method": self.classification_method,  # Use configured method (model or gemini)
                     "source": "snort_ids"
                 },
                 timeout=10
@@ -852,6 +917,26 @@ def stop_snort():
     result = snort_manager.stop_snort()
     return jsonify(result)
 
+@app.route('/snort/stop/force', methods=['POST'])
+def force_stop_snort():
+    """Force stop all Snort processes including orphaned ones"""
+    killed_pids = snort_manager.kill_all_snort_processes()
+    return jsonify({
+        "status": "killed",
+        "message": f"Force killed {len(killed_pids)} Snort process(es)",
+        "killed_pids": killed_pids
+    })
+
+@app.route('/snort/processes', methods=['GET'])
+def list_snort_processes():
+    """List all running Snort processes"""
+    processes = snort_manager.find_snort_processes()
+    return jsonify({
+        "status": "success",
+        "count": len(processes),
+        "processes": processes
+    })
+
 @app.route('/snort/status', methods=['GET'])
 def get_snort_status():
     result = snort_manager.get_status()
@@ -890,6 +975,31 @@ def set_snort_interface(interface_id):
         "status": "success",
         "message": f"Interface set to {interface_id}",
         "interface": interface_id
+    })
+
+@app.route('/snort/classification-method', methods=['GET'])
+def get_classification_method():
+    """Get current classification method"""
+    return jsonify({
+        "status": "success",
+        "classification_method": snort_manager.classification_method,
+        "available_methods": ["model", "gemini"]
+    })
+
+@app.route('/snort/classification-method/set/<method>', methods=['POST'])
+def set_classification_method(method):
+    """Set classification method (model or gemini)"""
+    if method not in ["model", "gemini"]:
+        return jsonify({
+            "status": "error",
+            "message": f"Invalid method. Choose 'model' or 'gemini'."
+        }), 400
+    
+    snort_manager.classification_method = method
+    return jsonify({
+        "status": "success",
+        "message": f"Classification method set to {method}",
+        "classification_method": method
     })
 
 @app.route('/snort/debug', methods=['POST'])
